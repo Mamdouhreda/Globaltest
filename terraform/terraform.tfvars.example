@@ -1,0 +1,23 @@
+# Copy this file to terraform.tfvars and adjust if needed.
+# terraform.tfvars is gitignored since it may end up with account-specific
+# overrides; the defaults below already match variables.tf.
+
+project_name = "globaltest"
+environment  = "dev"
+
+regions = {
+  uk      = "eu-west-2"
+  us      = "us-east-1"
+  germany = "eu-central-1"
+}
+
+vpc_cidrs = {
+  uk      = "10.10.0.0/16"
+  us      = "10.20.0.0/16"
+  germany = "10.30.0.0/16"
+}
+
+tags = {
+  Project   = "globaltest"
+  ManagedBy = "terraform"
+}

@@ -1,0 +1,15 @@
+frontend/node_modules/
+frontend/dist/
+
+backend/backend
+
+*.log
+.DS_Store
+
+# Terraform
+terraform/.terraform/
+terraform/*.tfstate
+terraform/*.tfstate.*
+terraform/*.tfvars
+!terraform/terraform.tfvars.example
+terraform/.terraform.lock.hcl
