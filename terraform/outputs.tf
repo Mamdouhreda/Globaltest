@@ -39,3 +39,12 @@ output "germany" {
     task_role           = module.germany.task_role_arn
   }
 }
+
+output "backend" {
+  description = "Backend control-plane container infrastructure outputs."
+  value = {
+    ecr_repository_url  = aws_ecr_repository.backend.repository_url
+    task_execution_role = aws_iam_role.backend_task_execution.arn
+    task_role           = aws_iam_role.backend_task.arn
+  }
+}

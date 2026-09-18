@@ -96,7 +96,7 @@ func runBrowserTestTask(ctx context.Context, cfg regionConfig, targetURL string)
 	}
 
 	if len(output.Failures) > 0 {
-		return "", fmt.Errorf("fargate task failed to start: %s", output.Failures[0].Reason)
+		return "", fmt.Errorf("fargate task failed to start: %s", aws.ToString(output.Failures[0].Reason))
 	}
 	if len(output.Tasks) == 0 {
 		return "", fmt.Errorf("fargate RunTask returned no tasks")

@@ -5,22 +5,32 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"github.com/chromedp/chromedp"
 	"log"
 	"net/http"
 	"os"
 	"time"
-	"github.com/chromedp/chromedp"
 )
 
 type urlRequest struct {
 	URL string `json:"url"`
+	// Region selects which AWS region runs the test: "uk", "us", or
+	// "germany". Left empty (or "local") to run Chromium locally instead —
+	// the original dev-time behavior, kept as a fallback for testing
+	// without any AWS infrastructure deployed.
+	Region string `json:"region,omitempty"`
 }
 
 type urlResponse struct {
 	Status         string `json:"status"`
 	URL            string `json:"url"`
-	ResponseTimeMs int64  `json:"responseTimeMs"`
-	Screenshot     string `json:"screenshot"`
+	ResponseTimeMs int64  `json:"responseTimeMs,omitempty"`
+	Screenshot     string `json:"screenshot,omitempty"`
+	// TaskArn is set instead of Screenshot when the test ran as a Fargate
+	// task — there's no result-polling yet (that needs the S3 bucket and
+	// task definition from later steps), so a region-based request only
+	// confirms the task started, it doesn't return a screenshot yet.
+	TaskArn string `json:"taskArn,omitempty"`
 }
 
 // main starts the HTTP server and registers the backend routes.
@@ -43,7 +53,10 @@ func main() {
 	}
 }
 
-// receiveURL reads a submitted URL, opens it in Chrome, and returns screenshot.
+// receiveURL reads a submitted URL and region. With no region (or "local"),
+// it opens the URL in Chrome locally and returns a screenshot, same as
+// before. With a region, it launches a Fargate task there instead — see
+// runBrowserTestTask in fargate.go.
 func receiveURL(w http.ResponseWriter, r *http.Request) {
 	var request urlRequest
 	if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
@@ -56,9 +69,18 @@ func receiveURL(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	fmt.Printf("received URL: %s\n", request.URL)
+	if request.Region == "" || request.Region == "local" {
+		receiveURLLocal(w, request.URL)
+		return
+	}
 
-	result, err := captureSite(request.URL)
+	receiveURLFargate(w, r, request.URL, request.Region)
+}
+
+func receiveURLLocal(w http.ResponseWriter, url string) {
+	fmt.Printf("received URL (local): %s\n", url)
+
+	result, err := captureSite(url)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadGateway)
 		return
@@ -69,9 +91,32 @@ func receiveURL(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(urlResponse{
 		Status:         "ok",
-		URL:            request.URL,
+		URL:            url,
 		ResponseTimeMs: result.responseTime.Milliseconds(),
 		Screenshot:     "data:image/png;base64," + base64.StdEncoding.EncodeToString(result.screenshot),
+	})
+}
+
+func receiveURLFargate(w http.ResponseWriter, r *http.Request, url, region string) {
+	cfg, ok := loadRegionConfigs()[region]
+	if !ok {
+		http.Error(w, fmt.Sprintf("unknown region %q (expected uk, us, or germany)", region), http.StatusBadRequest)
+		return
+	}
+
+	fmt.Printf("received URL (region=%s): %s\n", region, url)
+
+	taskArn, err := runBrowserTestTask(r.Context(), cfg, url)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadGateway)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(urlResponse{
+		Status:  "started",
+		URL:     url,
+		TaskArn: taskArn,
 	})
 }
 
