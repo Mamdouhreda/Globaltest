@@ -5,11 +5,14 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
-	"github.com/chromedp/chromedp"
 	"log"
 	"net/http"
 	"os"
 	"time"
+
+	"github.com/aws/aws-lambda-go/lambda"
+	"github.com/awslabs/aws-lambda-go-api-proxy/httpadapter"
+	"github.com/chromedp/chromedp"
 )
 
 type urlRequest struct {
@@ -33,22 +36,30 @@ type urlResponse struct {
 	TaskArn string `json:"taskArn,omitempty"`
 }
 
-// main starts the HTTP server and registers the backend routes.
+// main registers the backend routes, then either starts a Lambda runtime
+// loop (when running inside Lambda) or a plain HTTP server (local dev).
+// AWS_LAMBDA_RUNTIME_API is set by the Lambda service and nothing else, so
+// its presence is what decides which mode to run in.
 func main() {
-	port := os.Getenv("PORT")
-	if port == "" {
-		port = "8080"
-	}
-
 	mux := http.NewServeMux()
 	mux.HandleFunc("POST /url", receiveURL)
 	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		fmt.Fprintln(w, "Backend is running")
 	})
+	handler := withCORS(mux)
 
+	if os.Getenv("AWS_LAMBDA_RUNTIME_API") != "" {
+		lambda.Start(httpadapter.NewV2(handler).ProxyWithContext)
+		return
+	}
+
+	port := os.Getenv("PORT")
+	if port == "" {
+		port = "8080"
+	}
 	addr := ":" + port
 	log.Printf("backend running on http://localhost%s", addr)
-	if err := http.ListenAndServe(addr, withCORS(mux)); err != nil {
+	if err := http.ListenAndServe(addr, handler); err != nil {
 		log.Fatal(err)
 	}
 }

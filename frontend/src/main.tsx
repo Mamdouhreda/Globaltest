@@ -3,18 +3,33 @@ import { createRoot } from 'react-dom/client';
 import './styles.css';
 
 type UrlResponse = {
-  responseTimeMs: number;
-  screenshot: string;
+  status: string;
+  url: string;
+  responseTimeMs?: number;
+  screenshot?: string;
+  // Set instead of screenshot when a region is selected: the test runs as a
+  // Fargate task, which doesn't return a screenshot synchronously yet.
+  taskArn?: string;
 };
+
+const REGIONS = [
+  { value: '', label: 'Local (dev machine)' },
+  { value: 'uk', label: 'UK' },
+  { value: 'us', label: 'US' },
+  { value: 'germany', label: 'Germany' },
+];
 
 function App() {
   const [url, setUrl] = useState('');
+  const [region, setRegion] = useState('');
   const [status, setStatus] = useState('');
   const [screenshot, setScreenshot] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    setStatus('Sending...');
+    setIsSubmitting(true);
+    setStatus(region ? `Starting a browser test in ${region}...` : 'Sending...');
     setScreenshot('');
 
     try {
@@ -23,7 +38,7 @@ function App() {
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ url }),
+        body: JSON.stringify({ url, region }),
       });
 
       if (!response.ok) {
@@ -31,12 +46,21 @@ function App() {
       }
 
       const data = (await response.json()) as UrlResponse;
-      setStatus(`Chrome loaded the URL in ${data.responseTimeMs}ms`);
-      setScreenshot(data.screenshot);
+
+      if (data.status === 'started') {
+        // Region-based run: only a task ARN comes back today, no
+        // screenshot — there's no result-polling wired up yet.
+        setStatus(`Fargate task started in ${region} (${data.taskArn}). Screenshot retrieval isn't wired up yet.`);
+      } else {
+        setStatus(`Chrome loaded the URL in ${data.responseTimeMs}ms`);
+        setScreenshot(data.screenshot ?? '');
+      }
       setUrl('');
     } catch (error) {
       console.error(error);
       setStatus('Could not load URL in backend Chrome');
+    } finally {
+      setIsSubmitting(false);
     }
   }
 
@@ -60,13 +84,28 @@ function App() {
             placeholder="https://example.com"
             className="min-w-0 flex-1 rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-slate-900 placeholder:text-slate-400 outline-none transition focus:border-slate-400 focus:bg-white focus:ring-4 focus:ring-slate-100"
           />
+          <select
+            id="region"
+            name="region"
+            value={region}
+            onChange={(event) => setRegion(event.target.value)}
+            className="shrink-0 rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-slate-900 outline-none transition focus:border-slate-400 focus:bg-white focus:ring-4 focus:ring-slate-100"
+          >
+            {REGIONS.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
+          </select>
           <button
             type="submit"
-            className="shrink-0 rounded-xl bg-slate-900 px-5 py-2.5 font-medium text-white transition hover:bg-slate-800 sm:w-auto w-full"
+            disabled={isSubmitting}
+            className="shrink-0 rounded-xl bg-slate-900 px-5 py-2.5 font-medium text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto w-full"
           >
-            Submit
+            {isSubmitting ? 'Testing...' : 'Submit'}
           </button>
         </div>
+        {status && <p className="mt-4 text-sm text-slate-600">{status}</p>}
         {screenshot && (
           <div className="mt-6 overflow-hidden rounded-xl border border-slate-200 bg-slate-50">
             <img

@@ -47,10 +47,19 @@ module "germany" {
 }
 
 # ---------------------------------------------------------------------------
-# Backend container (control plane). Unlike the browser-tester, this is a
-# single control-plane service, not one per region, so it lives directly
-# here rather than inside the ecs-region module — created once, in us-east-1.
+# Backend (control plane). Runs as a Lambda function packaged as a container
+# image, behind an API Gateway HTTP API — not ECS/Fargate. An always-on
+# Fargate service would cost ~$12.66/month just sitting idle (smallest task
+# size + the mandatory public-IP charge, since there's no load balancer);
+# Lambda actually scales to zero, matching the $0-idle design used
+# everywhere else in this project. Single control-plane instance, not one
+# per region, so it lives directly here rather than inside the ecs-region
+# module — created once, in us-east-1.
 # ---------------------------------------------------------------------------
+
+data "aws_caller_identity" "current" {
+  provider = aws.us
+}
 
 resource "aws_ecr_repository" "backend" {
   provider             = aws.us
@@ -63,8 +72,32 @@ resource "aws_ecr_repository" "backend" {
   tags = var.tags
 }
 
-# Trust policy for the backend's own IAM roles: only ECS is allowed to
-# assume them, same pattern as each region's browser-tester roles.
+# Explicitly grants Lambda pull access to the backend image, scoped to this
+# specific function. AWS's console/control-plane can auto-add an equivalent
+# policy at function-create time for admin-level callers, but leaving that
+# implicit means it's undeclared in Terraform state — so it's declared here
+# instead.
+resource "aws_ecr_repository_policy" "backend" {
+  provider   = aws.us
+  repository = aws_ecr_repository.backend.name
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Sid       = "LambdaECRImageRetrievalPolicy"
+      Effect    = "Allow"
+      Principal = { Service = "lambda.amazonaws.com" }
+      Action    = ["ecr:BatchGetImage", "ecr:GetDownloadUrlForLayer"]
+      Condition = {
+        StringEquals = {
+          "aws:sourceArn" = "arn:aws:lambda:${var.regions.us}:${data.aws_caller_identity.current.account_id}:function:${var.project_name}-backend"
+        }
+      }
+    }]
+  })
+}
+
+# Trust policy for the backend's Lambda execution role: only the Lambda
+# service is allowed to assume it.
 data "aws_iam_policy_document" "backend_assume_role" {
   provider = aws.us
 
@@ -73,39 +106,33 @@ data "aws_iam_policy_document" "backend_assume_role" {
 
     principals {
       type        = "Service"
-      identifiers = ["ecs-tasks.amazonaws.com"]
+      identifiers = ["lambda.amazonaws.com"]
     }
   }
 }
 
-# Used by the ECS agent to pull the backend image from ECR and write logs —
-# same role shape as each region's task-execution role.
-resource "aws_iam_role" "backend_task_execution" {
+# Lambda has one execution role, not ECS's split "task execution" (pull
+# image, write logs) vs "task" (app permissions) — both collapse into this
+# single role.
+resource "aws_iam_role" "backend_lambda" {
   provider           = aws.us
-  name               = "${var.project_name}-backend-task-execution"
+  name               = "${var.project_name}-backend-lambda"
   assume_role_policy = data.aws_iam_policy_document.backend_assume_role.json
 
   tags = var.tags
 }
 
-resource "aws_iam_role_policy_attachment" "backend_task_execution" {
+# AWS-managed logging permissions — the Lambda equivalent of ECS's
+# AmazonECSTaskExecutionRolePolicy attachment.
+resource "aws_iam_role_policy_attachment" "backend_lambda_basic" {
   provider   = aws.us
-  role       = aws_iam_role.backend_task_execution.name
-  policy_arn = "arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy"
+  role       = aws_iam_role.backend_lambda.name
+  policy_arn = "arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
 }
 
-# Assumed by the backend application code itself while running in Fargate.
-# This is what lets backend/fargate.go's RunTask call actually succeed once
-# the backend is containerized — it needs permission to launch
-# browser-tester tasks in every region and to hand ECS those tasks' roles.
-resource "aws_iam_role" "backend_task" {
-  provider           = aws.us
-  name               = "${var.project_name}-backend-task"
-  assume_role_policy = data.aws_iam_policy_document.backend_assume_role.json
-
-  tags = var.tags
-}
-
+# Same application-level permissions the backend has always needed to
+# actually trigger browser-tester tasks — unchanged logic, just now on a
+# single Lambda role instead of split across two ECS-style roles.
 data "aws_iam_policy_document" "backend_task_permissions" {
   provider = aws.us
 
@@ -145,9 +172,78 @@ data "aws_iam_policy_document" "backend_task_permissions" {
   }
 }
 
-resource "aws_iam_role_policy" "backend_task" {
+resource "aws_iam_role_policy" "backend_lambda" {
   provider = aws.us
-  name     = "${var.project_name}-backend-task-permissions"
-  role     = aws_iam_role.backend_task.id
+  name     = "${var.project_name}-backend-lambda-permissions"
+  role     = aws_iam_role.backend_lambda.id
   policy   = data.aws_iam_policy_document.backend_task_permissions.json
+}
+
+# The function itself. package_type = "Image" requires image_uri to already
+# resolve to a real digest in ECR at apply time — unlike an ECS task
+# definition, this can't reference a not-yet-pushed tag. Small/short-lived
+# on purpose: this just calls one AWS API (ecs:RunTask) and returns.
+resource "aws_lambda_function" "backend" {
+  provider      = aws.us
+  function_name = "${var.project_name}-backend"
+  role          = aws_iam_role.backend_lambda.arn
+  package_type  = "Image"
+  image_uri     = "${aws_ecr_repository.backend.repository_url}:${var.backend_image_tag}"
+  timeout       = 10
+  memory_size   = 128
+  architectures = ["arm64"]
+
+  depends_on = [
+    aws_ecr_repository_policy.backend,
+    aws_iam_role_policy_attachment.backend_lambda_basic,
+    aws_iam_role_policy.backend_lambda,
+  ]
+
+  tags = var.tags
+}
+
+# HTTP API, not REST API — cheaper ($1/million requests vs $3.50/million)
+# and all this needs is a single proxy route.
+resource "aws_apigatewayv2_api" "backend" {
+  provider      = aws.us
+  name          = "${var.project_name}-backend"
+  protocol_type = "HTTP"
+
+  tags = var.tags
+}
+
+resource "aws_apigatewayv2_integration" "backend" {
+  provider               = aws.us
+  api_id                 = aws_apigatewayv2_api.backend.id
+  integration_type       = "AWS_PROXY"
+  integration_uri        = aws_lambda_function.backend.invoke_arn
+  payload_format_version = "2.0"
+}
+
+# A single catch-all route: the Go http.ServeMux inside the Lambda already
+# does the real routing (POST /url vs /), so there's no need to duplicate
+# that as separate API Gateway routes.
+resource "aws_apigatewayv2_route" "backend" {
+  provider  = aws.us
+  api_id    = aws_apigatewayv2_api.backend.id
+  route_key = "$default"
+  target    = "integrations/${aws_apigatewayv2_integration.backend.id}"
+}
+
+resource "aws_apigatewayv2_stage" "backend" {
+  provider    = aws.us
+  api_id      = aws_apigatewayv2_api.backend.id
+  name        = "$default"
+  auto_deploy = true
+
+  tags = var.tags
+}
+
+resource "aws_lambda_permission" "backend_apigw" {
+  provider      = aws.us
+  statement_id  = "AllowAPIGatewayInvoke"
+  action        = "lambda:InvokeFunction"
+  function_name = aws_lambda_function.backend.function_name
+  principal     = "apigateway.amazonaws.com"
+  source_arn    = "${aws_apigatewayv2_api.backend.execution_arn}/*/*"
 }

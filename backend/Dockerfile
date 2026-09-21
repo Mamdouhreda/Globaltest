@@ -5,17 +5,22 @@ WORKDIR /src
 COPY go.mod go.sum ./
 RUN go mod download
 COPY main.go fargate.go ./
-RUN CGO_ENABLED=0 go build -ldflags="-s -w" -o /backend .
+# Built natively as arm64 (this Mac's Docker platform, same as browser-tester)
+# rather than cross-compiled — Lambda supports arm64 directly, it's ~20%
+# cheaper per invocation, and it skips needing buildx. The binary name
+# "bootstrap" is what the Lambda base image below expects to run.
+RUN CGO_ENABLED=0 GOARCH=arm64 go build -tags lambda.norpc -ldflags="-s -w" -o /src/bootstrap .
 
-# ...then run it on the smallest possible base. Unlike browser-tester, this
-# image does NOT need Chromium — the backend is the control plane; it's
-# meant to trigger Fargate tasks to do the browser work, not run a browser
-# itself. (Today it still does run Chromium locally via chromedp, so
-# POST /url will fail in this container until that gets wired to Fargate —
-# see backend/fargate.go.)
-FROM gcr.io/distroless/static-debian12
+# AWS's Lambda base image for compiled/self-contained runtimes (Go has never
+# had its own managed Lambda runtime image — aws-lambda-go's lambda.Start
+# speaks the Lambda Runtime API directly against this OS-only base). Unlike
+# browser-tester, this image does NOT need Chromium — the backend is the
+# control plane; it triggers Fargate tasks to do the browser work rather
+# than running a browser itself. (The local-dev code path in main.go still
+# runs Chromium directly via chromedp, so that path won't work inside this
+# container — it's only reachable via `go run .` outside Lambda/Docker.)
+FROM public.ecr.aws/lambda/provided:al2023
 
-COPY --from=builder /backend /backend
+COPY --from=builder /src/bootstrap ./bootstrap
 
-EXPOSE 8080
-ENTRYPOINT ["/backend"]
+ENTRYPOINT ["./bootstrap"]

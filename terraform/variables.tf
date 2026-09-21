@@ -38,6 +38,12 @@ variable "vpc_cidrs" {
   }
 }
 
+variable "backend_image_tag" {
+  description = "Git-SHA tag of the backend image to deploy to Lambda. A mutable tag like \"latest\" wouldn't trigger a Terraform diff on redeploy — Lambda would silently keep serving the old image. Must reference an image that already exists in the backend ECR repo before this can be applied."
+  type        = string
+  default     = "latest" # placeholder — set to a real pushed image tag before applying the Lambda resources
+}
+
 variable "tags" {
   description = "Common tags applied to all resources."
   type        = map(string)

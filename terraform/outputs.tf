@@ -41,10 +41,10 @@ output "germany" {
 }
 
 output "backend" {
-  description = "Backend control-plane container infrastructure outputs."
+  description = "Backend control-plane (Lambda) infrastructure outputs."
   value = {
-    ecr_repository_url  = aws_ecr_repository.backend.repository_url
-    task_execution_role = aws_iam_role.backend_task_execution.arn
-    task_role           = aws_iam_role.backend_task.arn
+    ecr_repository_url = aws_ecr_repository.backend.repository_url
+    lambda_role        = aws_iam_role.backend_lambda.arn
+    invoke_url         = aws_apigatewayv2_stage.backend.invoke_url
   }
 }
