@@ -10,7 +10,33 @@ type UrlResponse = {
   // Set instead of screenshot when a region is selected: the test runs as a
   // Fargate task, which doesn't return a screenshot synchronously yet.
   taskArn?: string;
+  testId?: string;
 };
+
+type ResultResponse = {
+  status: 'pending' | 'ok' | 'error';
+  responseTimeMs?: number;
+  error?: string;
+  screenshot?: string;
+};
+
+async function pollResult(testId: string): Promise<ResultResponse> {
+  const deadline = Date.now() + 120_000;
+  while (Date.now() < deadline) {
+    await new Promise((resolve) => setTimeout(resolve, 3000));
+    const response = await fetch(`${API_URL}/result?id=${testId}`);
+    if (!response.ok) {
+      throw new Error(await response.text());
+    }
+    const result = (await response.json()) as ResultResponse;
+    if (result.status !== 'pending') {
+      return result;
+    }
+  }
+  throw new Error('Timed out waiting for the test result');
+}
+
+const API_URL = import.meta.env.VITE_API_URL ?? 'http://127.0.0.1:8080';
 
 const REGIONS = [
   { value: '', label: 'Local (dev machine)' },
@@ -33,7 +59,7 @@ function App() {
     setScreenshot('');
 
     try {
-      const response = await fetch('http://127.0.0.1:8080/url', {
+      const response = await fetch(`${API_URL}/url`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -47,10 +73,15 @@ function App() {
 
       const data = (await response.json()) as UrlResponse;
 
-      if (data.status === 'started') {
-        // Region-based run: only a task ARN comes back today, no
-        // screenshot — there's no result-polling wired up yet.
-        setStatus(`Fargate task started in ${region} (${data.taskArn}). Screenshot retrieval isn't wired up yet.`);
+      if (data.status === 'started' && data.testId) {
+        setStatus(`Test running in ${region}... this usually takes under a minute.`);
+        const result = await pollResult(data.testId);
+        if (result.status === 'ok') {
+          setStatus(`Loaded from ${region} in ${result.responseTimeMs}ms`);
+          setScreenshot(result.screenshot ?? '');
+        } else {
+          setStatus(`Test failed in ${region}: ${result.error ?? 'unknown error'}`);
+        }
       } else {
         setStatus(`Chrome loaded the URL in ${data.responseTimeMs}ms`);
         setScreenshot(data.screenshot ?? '');

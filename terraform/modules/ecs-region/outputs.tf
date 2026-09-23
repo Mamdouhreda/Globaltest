@@ -37,3 +37,8 @@ output "task_role_arn" {
   description = "ARN of the IAM role assumed by application code inside the running task."
   value       = aws_iam_role.task.arn
 }
+
+output "task_definition_arn" {
+  description = "ARN of the browser-tester ECS task definition, for RunTask to launch."
+  value       = aws_ecs_task_definition.browser_tester.arn
+}

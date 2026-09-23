@@ -10,12 +10,14 @@ module "uk" {
     aws = aws.uk
   }
 
-  region_name  = "uk"
-  aws_region   = var.regions.uk
-  vpc_cidr     = var.vpc_cidrs.uk
-  project_name = var.project_name
-  environment  = var.environment
-  tags         = var.tags
+  region_name              = "uk"
+  aws_region               = var.regions.uk
+  vpc_cidr                 = var.vpc_cidrs.uk
+  project_name             = var.project_name
+  environment              = var.environment
+  browser_tester_image_tag = var.browser_tester_image_tag
+  results_bucket_arn       = aws_s3_bucket.results.arn
+  tags                     = var.tags
 }
 
 module "us" {
@@ -24,12 +26,14 @@ module "us" {
     aws = aws.us
   }
 
-  region_name  = "us"
-  aws_region   = var.regions.us
-  vpc_cidr     = var.vpc_cidrs.us
-  project_name = var.project_name
-  environment  = var.environment
-  tags         = var.tags
+  region_name              = "us"
+  aws_region               = var.regions.us
+  vpc_cidr                 = var.vpc_cidrs.us
+  project_name             = var.project_name
+  environment              = var.environment
+  browser_tester_image_tag = var.browser_tester_image_tag
+  results_bucket_arn       = aws_s3_bucket.results.arn
+  tags                     = var.tags
 }
 
 module "germany" {
@@ -38,12 +42,14 @@ module "germany" {
     aws = aws.germany
   }
 
-  region_name  = "germany"
-  aws_region   = var.regions.germany
-  vpc_cidr     = var.vpc_cidrs.germany
-  project_name = var.project_name
-  environment  = var.environment
-  tags         = var.tags
+  region_name              = "germany"
+  aws_region               = var.regions.germany
+  vpc_cidr                 = var.vpc_cidrs.germany
+  project_name             = var.project_name
+  environment              = var.environment
+  browser_tester_image_tag = var.browser_tester_image_tag
+  results_bucket_arn       = aws_s3_bucket.results.arn
+  tags                     = var.tags
 }
 
 # ---------------------------------------------------------------------------
@@ -156,6 +162,25 @@ data "aws_iam_policy_document" "backend_task_permissions" {
     resources = ["*"]
   }
 
+  statement {
+    actions   = ["s3:GetObject"]
+    resources = ["${aws_s3_bucket.results.arn}/results/*"]
+  }
+
+  # Without ListBucket, S3 answers a missing key with 403 instead of 404,
+  # which would make "task not finished yet" indistinguishable from a real
+  # permissions failure.
+  statement {
+    actions   = ["s3:ListBucket"]
+    resources = [aws_s3_bucket.results.arn]
+
+    condition {
+      test     = "StringLike"
+      variable = "s3:prefix"
+      values   = ["results/*"]
+    }
+  }
+
   # RunTask requires the caller to be allowed to hand ECS the execution/task
   # roles named in the task definition — without this, RunTask fails even
   # with ecs:RunTask granted above.
@@ -192,6 +217,33 @@ resource "aws_lambda_function" "backend" {
   timeout       = 10
   memory_size   = 128
   architectures = ["arm64"]
+
+  # Per-region Fargate settings fargate.go's loadRegionConfigs() reads at
+  # cold start.
+  environment {
+    variables = {
+      FARGATE_UK_AWS_REGION          = var.regions.uk
+      FARGATE_UK_CLUSTER_ARN         = module.uk.cluster_arn
+      FARGATE_UK_SUBNET_IDS          = join(",", module.uk.public_subnet_ids)
+      FARGATE_UK_SECURITY_GROUP_ID   = module.uk.security_group_id
+      FARGATE_UK_TASK_DEFINITION_ARN = module.uk.task_definition_arn
+
+      FARGATE_US_AWS_REGION          = var.regions.us
+      FARGATE_US_CLUSTER_ARN         = module.us.cluster_arn
+      FARGATE_US_SUBNET_IDS          = join(",", module.us.public_subnet_ids)
+      FARGATE_US_SECURITY_GROUP_ID   = module.us.security_group_id
+      FARGATE_US_TASK_DEFINITION_ARN = module.us.task_definition_arn
+
+      FARGATE_GERMANY_AWS_REGION          = var.regions.germany
+      FARGATE_GERMANY_CLUSTER_ARN         = module.germany.cluster_arn
+      FARGATE_GERMANY_SUBNET_IDS          = join(",", module.germany.public_subnet_ids)
+      FARGATE_GERMANY_SECURITY_GROUP_ID   = module.germany.security_group_id
+      FARGATE_GERMANY_TASK_DEFINITION_ARN = module.germany.task_definition_arn
+
+      RESULTS_BUCKET        = aws_s3_bucket.results.id
+      RESULTS_BUCKET_REGION = var.regions.us
+    }
+  }
 
   depends_on = [
     aws_ecr_repository_policy.backend,
@@ -246,4 +298,106 @@ resource "aws_lambda_permission" "backend_apigw" {
   function_name = aws_lambda_function.backend.function_name
   principal     = "apigateway.amazonaws.com"
   source_arn    = "${aws_apigatewayv2_api.backend.execution_arn}/*/*"
+}
+
+# ---------------------------------------------------------------------------
+# Frontend. Plain S3 static website hosting for now (HTTP only, on the
+# bucket's s3-website endpoint) — no CloudFront yet, so no HTTPS/custom
+# domain/CDN caching. Single instance, not per-region, so it lives here
+# alongside the backend control plane rather than in the ecs-region module.
+# ---------------------------------------------------------------------------
+
+resource "aws_s3_bucket" "frontend" {
+  provider      = aws.us
+  bucket        = "${var.project_name}-frontend"
+  force_destroy = true
+
+  tags = var.tags
+}
+
+# Static website hosting mode (not the default private-bucket behavior):
+# serves index.html for "/" and, since this is a single-page app with no
+# server-side routing, also falls back to index.html on 404s so client-side
+# routes don't break on a direct load/refresh.
+resource "aws_s3_bucket_website_configuration" "frontend" {
+  provider = aws.us
+  bucket   = aws_s3_bucket.frontend.id
+
+  index_document {
+    suffix = "index.html"
+  }
+
+  error_document {
+    key = "index.html"
+  }
+}
+
+# Website hosting requires the objects to be publicly readable; this opens
+# that up at the bucket level so the policy below can actually grant it.
+resource "aws_s3_bucket_public_access_block" "frontend" {
+  provider = aws.us
+  bucket   = aws_s3_bucket.frontend.id
+
+  block_public_acls       = false
+  block_public_policy     = false
+  ignore_public_acls      = false
+  restrict_public_buckets = false
+}
+
+resource "aws_s3_bucket_policy" "frontend" {
+  provider   = aws.us
+  bucket     = aws_s3_bucket.frontend.id
+  depends_on = [aws_s3_bucket_public_access_block.frontend]
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Sid       = "PublicReadGetObject"
+      Effect    = "Allow"
+      Principal = "*"
+      Action    = "s3:GetObject"
+      Resource  = "${aws_s3_bucket.frontend.arn}/*"
+    }]
+  })
+}
+
+# ---------------------------------------------------------------------------
+# Test results (screenshots + result JSON). Private; written by the
+# browser-tester tasks, read by the backend Lambda. Objects expire after a
+# day so storage stays ~$0.
+# ---------------------------------------------------------------------------
+
+resource "aws_s3_bucket" "results" {
+  provider      = aws.us
+  bucket        = "${var.project_name}-results"
+  force_destroy = true
+
+  tags = var.tags
+}
+
+resource "aws_s3_bucket_public_access_block" "results" {
+  provider                = aws.us
+  bucket                  = aws_s3_bucket.results.id
+  block_public_acls       = true
+  block_public_policy     = true
+  ignore_public_acls      = true
+  restrict_public_buckets = true
+}
+
+resource "aws_s3_bucket_lifecycle_configuration" "results" {
+  provider = aws.us
+  bucket   = aws_s3_bucket.results.id
+
+  rule {
+    id     = "expire-results"
+    status = "Enabled"
+
+    filter {
+      prefix = "results/"
+    }
+
+    expiration {
+      days = 1
+    }
+  }
 }

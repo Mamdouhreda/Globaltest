@@ -13,5 +13,8 @@ RUN CGO_ENABLED=0 go build -ldflags="-s -w" -o /browser-tester .
 FROM chromedp/headless-shell:latest
 
 COPY --from=builder /browser-tester /browser-tester
+# headless-shell ships without a system CA bundle; the AWS SDK needs one to
+# talk TLS to S3 (Chromium itself uses its own built-in trust store).
+COPY --from=builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/ca-certificates.crt
 
 ENTRYPOINT ["/browser-tester"]

@@ -60,7 +60,7 @@ func splitCommaList(value string) []string {
 // runBrowserTestTask launches one on-demand Fargate task that runs the
 // browser-tester container against targetURL in the given region. It
 // returns the started task's ARN without waiting for the task to finish.
-func runBrowserTestTask(ctx context.Context, cfg regionConfig, targetURL string) (string, error) {
+func runBrowserTestTask(ctx context.Context, cfg regionConfig, targetURL, testID string) (string, error) {
 	awsCfg, err := config.LoadDefaultConfig(ctx, config.WithRegion(cfg.awsRegion))
 	if err != nil {
 		return "", fmt.Errorf("load AWS config: %w", err)
@@ -86,6 +86,9 @@ func runBrowserTestTask(ctx context.Context, cfg regionConfig, targetURL string)
 					Name: aws.String(browserTesterContainerName),
 					Environment: []types.KeyValuePair{
 						{Name: aws.String("TARGET_URL"), Value: aws.String(targetURL)},
+						{Name: aws.String("TEST_ID"), Value: aws.String(testID)},
+						{Name: aws.String("RESULTS_BUCKET"), Value: aws.String(os.Getenv("RESULTS_BUCKET"))},
+						{Name: aws.String("RESULTS_BUCKET_REGION"), Value: aws.String(os.Getenv("RESULTS_BUCKET_REGION"))},
 					},
 				},
 			},

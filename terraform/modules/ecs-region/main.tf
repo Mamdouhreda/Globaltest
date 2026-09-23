@@ -176,3 +176,65 @@ resource "aws_iam_role" "task" {
 
   tags = var.tags
 }
+
+resource "aws_iam_role_policy" "task_results" {
+  name = "${local.name_prefix}-task-results-write"
+  role = aws_iam_role.task.id
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Effect   = "Allow"
+      Action   = ["s3:PutObject"]
+      Resource = "${var.results_bucket_arn}/results/*"
+    }]
+  })
+}
+
+# ---------------------------------------------------------------------------
+# ECS task definition (Phase 2/3): registers the pushed browser-tester image
+# so RunTask has something to launch. Short retention on the log group since
+# these are short-lived, on-demand debug logs, not something to keep $0-idle
+# storage costs from creeping up.
+# ---------------------------------------------------------------------------
+
+resource "aws_cloudwatch_log_group" "browser_tester" {
+  name              = "/ecs/${local.name_prefix}-browser-tester"
+  retention_in_days = 3
+
+  tags = var.tags
+}
+
+# Built and pushed natively as arm64 (this module's host Mac's Docker
+# platform) — Graviton Fargate is also ~20% cheaper per second than x86.
+resource "aws_ecs_task_definition" "browser_tester" {
+  family                   = "${local.name_prefix}-browser-tester"
+  requires_compatibilities = ["FARGATE"]
+  network_mode             = "awsvpc"
+  cpu                      = "1024"
+  memory                   = "2048"
+  execution_role_arn       = aws_iam_role.task_execution.arn
+  task_role_arn            = aws_iam_role.task.arn
+
+  runtime_platform {
+    cpu_architecture        = "ARM64"
+    operating_system_family = "LINUX"
+  }
+
+  container_definitions = jsonencode([
+    {
+      name      = "browser-tester"
+      image     = "${aws_ecr_repository.browser_tester.repository_url}:${var.browser_tester_image_tag}"
+      essential = true
+      logConfiguration = {
+        logDriver = "awslogs"
+        options = {
+          "awslogs-group"         = aws_cloudwatch_log_group.browser_tester.name
+          "awslogs-region"        = var.aws_region
+          "awslogs-stream-prefix" = "browser-tester"
+        }
+      }
+    }
+  ])
+
+  tags = var.tags
+}

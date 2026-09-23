@@ -137,7 +137,11 @@ func writeLocal(outputDir, testID string, res result, png []byte) error {
 }
 
 func uploadToS3(ctx context.Context, bucket, testID string, res result, png []byte) error {
-	cfg, err := config.LoadDefaultConfig(ctx)
+	var opts []func(*config.LoadOptions) error
+	if region := os.Getenv("RESULTS_BUCKET_REGION"); region != "" {
+		opts = append(opts, config.WithRegion(region))
+	}
+	cfg, err := config.LoadDefaultConfig(ctx, opts...)
 	if err != nil {
 		return fmt.Errorf("load AWS config: %w", err)
 	}

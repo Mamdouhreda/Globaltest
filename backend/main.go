@@ -1,16 +1,25 @@
 package main
 
 import (
+	"bytes"
 	"context"
+	"crypto/rand"
 	"encoding/base64"
+	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log"
 	"net/http"
 	"os"
+	"regexp"
 	"time"
 
 	"github.com/aws/aws-lambda-go/lambda"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/config"
+	"github.com/aws/aws-sdk-go-v2/service/s3"
+	s3types "github.com/aws/aws-sdk-go-v2/service/s3/types"
 	"github.com/awslabs/aws-lambda-go-api-proxy/httpadapter"
 	"github.com/chromedp/chromedp"
 )
@@ -34,6 +43,8 @@ type urlResponse struct {
 	// task definition from later steps), so a region-based request only
 	// confirms the task started, it doesn't return a screenshot yet.
 	TaskArn string `json:"taskArn,omitempty"`
+	// TestID identifies the run; poll GET /result?id=<TestID> for the outcome.
+	TestID string `json:"testId,omitempty"`
 }
 
 // main registers the backend routes, then either starts a Lambda runtime
@@ -43,6 +54,7 @@ type urlResponse struct {
 func main() {
 	mux := http.NewServeMux()
 	mux.HandleFunc("POST /url", receiveURL)
+	mux.HandleFunc("GET /result", receiveResult)
 	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		fmt.Fprintln(w, "Backend is running")
 	})
@@ -117,7 +129,13 @@ func receiveURLFargate(w http.ResponseWriter, r *http.Request, url, region strin
 
 	fmt.Printf("received URL (region=%s): %s\n", region, url)
 
-	taskArn, err := runBrowserTestTask(r.Context(), cfg, url)
+	testID, err := newTestID()
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	taskArn, err := runBrowserTestTask(r.Context(), cfg, url, testID)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadGateway)
 		return
@@ -128,7 +146,89 @@ func receiveURLFargate(w http.ResponseWriter, r *http.Request, url, region strin
 		Status:  "started",
 		URL:     url,
 		TaskArn: taskArn,
+		TestID:  testID,
 	})
+}
+
+func newTestID() (string, error) {
+	b := make([]byte, 16)
+	if _, err := rand.Read(b); err != nil {
+		return "", err
+	}
+	return hex.EncodeToString(b), nil
+}
+
+var testIDPattern = regexp.MustCompile(`^[0-9a-f]{32}$`)
+
+type resultResponse struct {
+	Status         string `json:"status"` // pending, ok, or error
+	URL            string `json:"url,omitempty"`
+	ResponseTimeMs int64  `json:"responseTimeMs,omitempty"`
+	Error          string `json:"error,omitempty"`
+	Screenshot     string `json:"screenshot,omitempty"`
+}
+
+// receiveResult reports the outcome of a Fargate test by reading the result
+// JSON (and screenshot) the browser-tester task wrote to S3. A missing
+// object just means the task hasn't finished yet.
+func receiveResult(w http.ResponseWriter, r *http.Request) {
+	id := r.URL.Query().Get("id")
+	if !testIDPattern.MatchString(id) {
+		http.Error(w, "invalid id", http.StatusBadRequest)
+		return
+	}
+
+	ctx := r.Context()
+	bucket := os.Getenv("RESULTS_BUCKET")
+	awsCfg, err := config.LoadDefaultConfig(ctx, config.WithRegion(os.Getenv("RESULTS_BUCKET_REGION")))
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	client := s3.NewFromConfig(awsCfg)
+
+	w.Header().Set("Content-Type", "application/json")
+
+	obj, err := client.GetObject(ctx, &s3.GetObjectInput{
+		Bucket: aws.String(bucket),
+		Key:    aws.String("results/" + id + ".json"),
+	})
+	if err != nil {
+		var noKey *s3types.NoSuchKey
+		if errors.As(err, &noKey) {
+			json.NewEncoder(w).Encode(resultResponse{Status: "pending"})
+			return
+		}
+		http.Error(w, err.Error(), http.StatusBadGateway)
+		return
+	}
+	defer obj.Body.Close()
+
+	var res resultResponse
+	if err := json.NewDecoder(obj.Body).Decode(&res); err != nil {
+		http.Error(w, err.Error(), http.StatusBadGateway)
+		return
+	}
+
+	if res.Status == "ok" {
+		png, err := client.GetObject(ctx, &s3.GetObjectInput{
+			Bucket: aws.String(bucket),
+			Key:    aws.String("results/" + id + ".png"),
+		})
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusBadGateway)
+			return
+		}
+		defer png.Body.Close()
+		var buf bytes.Buffer
+		if _, err := buf.ReadFrom(png.Body); err != nil {
+			http.Error(w, err.Error(), http.StatusBadGateway)
+			return
+		}
+		res.Screenshot = "data:image/png;base64," + base64.StdEncoding.EncodeToString(buf.Bytes())
+	}
+
+	json.NewEncoder(w).Encode(res)
 }
 
 type captureResult struct {

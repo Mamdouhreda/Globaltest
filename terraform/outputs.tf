@@ -48,3 +48,11 @@ output "backend" {
     invoke_url         = aws_apigatewayv2_stage.backend.invoke_url
   }
 }
+
+output "frontend" {
+  description = "Frontend (S3 static website) infrastructure outputs."
+  value = {
+    bucket_name = aws_s3_bucket.frontend.id
+    website_url = "http://${aws_s3_bucket_website_configuration.frontend.website_endpoint}"
+  }
+}

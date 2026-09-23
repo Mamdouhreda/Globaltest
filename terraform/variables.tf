@@ -44,6 +44,12 @@ variable "backend_image_tag" {
   default     = "latest" # placeholder — set to a real pushed image tag before applying the Lambda resources
 }
 
+variable "browser_tester_image_tag" {
+  description = "Git-SHA tag of the browser-tester image to deploy to each region's ECS task definition. Must already exist in all three regional ECR repos before this can be applied."
+  type        = string
+  default     = "latest" # placeholder — set to a real pushed image tag before applying the ECS task definitions
+}
+
 variable "tags" {
   description = "Common tags applied to all resources."
   type        = map(string)

@@ -28,3 +28,13 @@ variable "tags" {
   type        = map(string)
   default     = {}
 }
+
+variable "results_bucket_arn" {
+  description = "ARN of the S3 bucket the browser-tester task writes screenshots/results into."
+  type        = string
+}
+
+variable "browser_tester_image_tag" {
+  description = "Git-SHA tag of the browser-tester image to run. Must already exist in this region's ECR repo before this can be applied."
+  type        = string
+}
