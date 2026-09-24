@@ -43,6 +43,7 @@ const REGIONS = [
   { value: 'uk', label: 'UK' },
   { value: 'us', label: 'US' },
   { value: 'germany', label: 'Germany' },
+  { value: 'australia', label: 'Australia' },
 ];
 
 function App() {

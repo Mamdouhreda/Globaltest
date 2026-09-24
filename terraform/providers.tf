@@ -12,3 +12,8 @@ provider "aws" {
   alias  = "germany"
   region = var.regions.germany
 }
+
+provider "aws" {
+  alias  = "australia"
+  region = var.regions.australia
+}

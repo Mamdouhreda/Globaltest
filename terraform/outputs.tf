@@ -40,6 +40,20 @@ output "germany" {
   }
 }
 
+output "australia" {
+  description = "Australia region infrastructure outputs."
+  value = {
+    cluster_name        = module.australia.cluster_name
+    cluster_arn         = module.australia.cluster_arn
+    vpc_id              = module.australia.vpc_id
+    public_subnet_ids   = module.australia.public_subnet_ids
+    security_group_id   = module.australia.security_group_id
+    ecr_repository_url  = module.australia.ecr_repository_url
+    task_execution_role = module.australia.task_execution_role_arn
+    task_role           = module.australia.task_role_arn
+  }
+}
+
 output "backend" {
   description = "Backend control-plane (Lambda) infrastructure outputs."
   value = {

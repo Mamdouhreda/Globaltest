@@ -98,6 +98,7 @@ data "aws_iam_policy_document" "github_deploy" {
       module.uk.ecr_repository_arn,
       module.us.ecr_repository_arn,
       module.germany.ecr_repository_arn,
+      module.australia.ecr_repository_arn,
     ]
   }
 
@@ -116,6 +117,8 @@ data "aws_iam_policy_document" "github_deploy" {
       module.us.task_role_arn,
       module.germany.task_execution_role_arn,
       module.germany.task_role_arn,
+      module.australia.task_execution_role_arn,
+      module.australia.task_role_arn,
     ]
   }
 

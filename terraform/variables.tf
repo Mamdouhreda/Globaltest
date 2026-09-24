@@ -13,28 +13,32 @@ variable "environment" {
 variable "regions" {
   description = "AWS region code for each GlobalTest testing location."
   type = object({
-    uk      = string
-    us      = string
-    germany = string
+    uk        = string
+    us        = string
+    germany   = string
+    australia = string
   })
   default = {
-    uk      = "eu-west-2"
-    us      = "us-east-1"
-    germany = "eu-central-1"
+    uk        = "eu-west-2"
+    us        = "us-east-1"
+    germany   = "eu-central-1"
+    australia = "ap-southeast-2"
   }
 }
 
 variable "vpc_cidrs" {
   description = "VPC CIDR block for each region (kept distinct so they never overlap)."
   type = object({
-    uk      = string
-    us      = string
-    germany = string
+    uk        = string
+    us        = string
+    germany   = string
+    australia = string
   })
   default = {
-    uk      = "10.10.0.0/16"
-    us      = "10.20.0.0/16"
-    germany = "10.30.0.0/16"
+    uk        = "10.10.0.0/16"
+    us        = "10.20.0.0/16"
+    germany   = "10.30.0.0/16"
+    australia = "10.40.0.0/16"
   }
 }
 
@@ -45,7 +49,7 @@ variable "backend_image_tag" {
 }
 
 variable "browser_tester_image_tag" {
-  description = "Git-SHA tag of the browser-tester image to deploy to each region's ECS task definition. Must already exist in all three regional ECR repos before this can be applied."
+  description = "Git-SHA tag of the browser-tester image to deploy to each region's ECS task definition. Must already exist in all regional ECR repos before this can be applied."
   type        = string
   default     = "latest" # placeholder — set to a real pushed image tag before applying the ECS task definitions
 }

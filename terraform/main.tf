@@ -1,7 +1,7 @@
 # ---------------------------------------------------------------------------
 # One region = one instantiation of the ecs-region module. Adding a new
 # testing region later (e.g. Japan) means adding another block like these
-# three, not copying the underlying VPC/ECS/ECR/IAM resources.
+# four, not copying the underlying VPC/ECS/ECR/IAM resources.
 # ---------------------------------------------------------------------------
 
 module "uk" {
@@ -45,6 +45,22 @@ module "germany" {
   region_name              = "germany"
   aws_region               = var.regions.germany
   vpc_cidr                 = var.vpc_cidrs.germany
+  project_name             = var.project_name
+  environment              = var.environment
+  browser_tester_image_tag = var.browser_tester_image_tag
+  results_bucket_arn       = aws_s3_bucket.results.arn
+  tags                     = var.tags
+}
+
+module "australia" {
+  source = "./modules/ecs-region"
+  providers = {
+    aws = aws.australia
+  }
+
+  region_name              = "australia"
+  aws_region               = var.regions.australia
+  vpc_cidr                 = var.vpc_cidrs.australia
   project_name             = var.project_name
   environment              = var.environment
   browser_tester_image_tag = var.browser_tester_image_tag
@@ -142,7 +158,7 @@ resource "aws_iam_role_policy_attachment" "backend_lambda_basic" {
 data "aws_iam_policy_document" "backend_task_permissions" {
   provider = aws.us
 
-  # Launch a browser-tester task in any of the three regions. Scoped by
+  # Launch a browser-tester task in any of the testing regions. Scoped by
   # family name rather than a specific revision ARN, since the task
   # definitions themselves don't exist yet (added in a later phase).
   statement {
@@ -151,6 +167,7 @@ data "aws_iam_policy_document" "backend_task_permissions" {
       "arn:aws:ecs:${var.regions.uk}:*:task-definition/${var.project_name}-uk-browser-tester:*",
       "arn:aws:ecs:${var.regions.us}:*:task-definition/${var.project_name}-us-browser-tester:*",
       "arn:aws:ecs:${var.regions.germany}:*:task-definition/${var.project_name}-germany-browser-tester:*",
+      "arn:aws:ecs:${var.regions.australia}:*:task-definition/${var.project_name}-australia-browser-tester:*",
     ]
   }
 
@@ -193,6 +210,8 @@ data "aws_iam_policy_document" "backend_task_permissions" {
       module.us.task_role_arn,
       module.germany.task_execution_role_arn,
       module.germany.task_role_arn,
+      module.australia.task_execution_role_arn,
+      module.australia.task_role_arn,
     ]
   }
 }
@@ -239,6 +258,12 @@ resource "aws_lambda_function" "backend" {
       FARGATE_GERMANY_SUBNET_IDS          = join(",", module.germany.public_subnet_ids)
       FARGATE_GERMANY_SECURITY_GROUP_ID   = module.germany.security_group_id
       FARGATE_GERMANY_TASK_DEFINITION_ARN = module.germany.task_definition_family
+
+      FARGATE_AUSTRALIA_AWS_REGION          = var.regions.australia
+      FARGATE_AUSTRALIA_CLUSTER_ARN         = module.australia.cluster_arn
+      FARGATE_AUSTRALIA_SUBNET_IDS          = join(",", module.australia.public_subnet_ids)
+      FARGATE_AUSTRALIA_SECURITY_GROUP_ID   = module.australia.security_group_id
+      FARGATE_AUSTRALIA_TASK_DEFINITION_ARN = module.australia.task_definition_family
 
       RESULTS_BUCKET        = aws_s3_bucket.results.id
       RESULTS_BUCKET_REGION = var.regions.us

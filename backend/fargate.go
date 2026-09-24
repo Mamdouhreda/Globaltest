@@ -29,7 +29,7 @@ const browserTesterContainerName = "browser-tester"
 // loadRegionConfigs reads per-region Fargate settings from environment
 // variables, one set per supported testing region.
 func loadRegionConfigs() map[string]regionConfig {
-	regions := []string{"uk", "us", "germany"}
+	regions := []string{"uk", "us", "germany", "australia"}
 	configs := make(map[string]regionConfig, len(regions))
 
 	for _, region := range regions {
