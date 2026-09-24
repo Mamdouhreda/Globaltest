@@ -12,6 +12,12 @@ variable "github_repo" {
   default     = "Mamdouhreda/Globaltest"
 }
 
+variable "github_oidc_subject_prefix" {
+  description = "Prefix of the repo's OIDC sub claim. This repo uses immutable subjects (owner/repo IDs), see: gh api repos/OWNER/REPO/actions/oidc/customization/sub. Defaults to the standard repo:owner/name form when empty."
+  type        = string
+  default     = "repo:Mamdouhreda@114737066/Globaltest@1375109447"
+}
+
 variable "create_github_oidc_provider" {
   description = "Set false if this AWS account already has the token.actions.githubusercontent.com OIDC provider (only one is allowed per account)."
   type        = bool
@@ -56,7 +62,7 @@ data "aws_iam_policy_document" "github_deploy_assume_role" {
     condition {
       test     = "StringEquals"
       variable = "token.actions.githubusercontent.com:sub"
-      values   = ["repo:${var.github_repo}:ref:refs/heads/main"]
+      values   = ["${var.github_oidc_subject_prefix != "" ? var.github_oidc_subject_prefix : "repo:${var.github_repo}"}:ref:refs/heads/main"]
     }
   }
 }
