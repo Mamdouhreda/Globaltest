@@ -226,19 +226,19 @@ resource "aws_lambda_function" "backend" {
       FARGATE_UK_CLUSTER_ARN         = module.uk.cluster_arn
       FARGATE_UK_SUBNET_IDS          = join(",", module.uk.public_subnet_ids)
       FARGATE_UK_SECURITY_GROUP_ID   = module.uk.security_group_id
-      FARGATE_UK_TASK_DEFINITION_ARN = module.uk.task_definition_arn
+      FARGATE_UK_TASK_DEFINITION_ARN = module.uk.task_definition_family
 
       FARGATE_US_AWS_REGION          = var.regions.us
       FARGATE_US_CLUSTER_ARN         = module.us.cluster_arn
       FARGATE_US_SUBNET_IDS          = join(",", module.us.public_subnet_ids)
       FARGATE_US_SECURITY_GROUP_ID   = module.us.security_group_id
-      FARGATE_US_TASK_DEFINITION_ARN = module.us.task_definition_arn
+      FARGATE_US_TASK_DEFINITION_ARN = module.us.task_definition_family
 
       FARGATE_GERMANY_AWS_REGION          = var.regions.germany
       FARGATE_GERMANY_CLUSTER_ARN         = module.germany.cluster_arn
       FARGATE_GERMANY_SUBNET_IDS          = join(",", module.germany.public_subnet_ids)
       FARGATE_GERMANY_SECURITY_GROUP_ID   = module.germany.security_group_id
-      FARGATE_GERMANY_TASK_DEFINITION_ARN = module.germany.task_definition_arn
+      FARGATE_GERMANY_TASK_DEFINITION_ARN = module.germany.task_definition_family
 
       RESULTS_BUCKET        = aws_s3_bucket.results.id
       RESULTS_BUCKET_REGION = var.regions.us
@@ -250,6 +250,12 @@ resource "aws_lambda_function" "backend" {
     aws_iam_role_policy_attachment.backend_lambda_basic,
     aws_iam_role_policy.backend_lambda,
   ]
+
+  # CI (.github/workflows/deploy.yml) updates the function's image on every
+  # push; Terraform only owns the function's shape, not which image runs.
+  lifecycle {
+    ignore_changes = [image_uri]
+  }
 
   tags = var.tags
 }

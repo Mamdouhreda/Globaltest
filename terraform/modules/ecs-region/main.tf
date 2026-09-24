@@ -236,5 +236,11 @@ resource "aws_ecs_task_definition" "browser_tester" {
     }
   ])
 
+  # CI (.github/workflows/deploy.yml) registers new revisions with each
+  # freshly pushed image, so Terraform must not revert them to the pinned tag.
+  lifecycle {
+    ignore_changes = [container_definitions]
+  }
+
   tags = var.tags
 }

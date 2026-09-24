@@ -1,0 +1,175 @@
+name: deploy
+
+# Builds and ships whatever changed on every push to main:
+#   backend/**         -> image to ECR (us-east-1) -> Lambda code update
+#   browser-tester/**  -> image to each regional ECR -> new ECS task-def revision
+#   frontend/**        -> vite build -> S3 sync
+# Infra (terraform/) is deliberately NOT applied here; state is local.
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: deploy
+  cancel-in-progress: false
+
+permissions:
+  id-token: write
+  contents: read
+
+env:
+  PROJECT: globaltest
+  BACKEND_REGION: us-east-1
+
+jobs:
+  changes:
+    runs-on: ubuntu-latest
+    outputs:
+      backend: ${{ steps.filter.outputs.backend }}
+      browser-tester: ${{ steps.filter.outputs.browser-tester }}
+      frontend: ${{ steps.filter.outputs.frontend }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            backend:
+              - "backend/**"
+              - ".github/workflows/deploy.yml"
+            browser-tester:
+              - "browser-tester/**"
+              - ".github/workflows/deploy.yml"
+            frontend:
+              - "frontend/**"
+              - ".github/workflows/deploy.yml"
+
+  backend:
+    needs: changes
+    if: needs.changes.outputs.backend == 'true' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.AWS_DEPLOY_ROLE_ARN }}
+          aws-region: ${{ env.BACKEND_REGION }}
+
+      - id: ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      # The Lambda and Fargate images are arm64; emulate on the x86 runner.
+      - uses: docker/setup-qemu-action@v3
+        with:
+          platforms: arm64
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Build and push
+        uses: docker/build-push-action@v6
+        with:
+          context: backend
+          platforms: linux/arm64
+          push: true
+          # Lambda rejects OCI indexes/attestation manifests.
+          provenance: false
+          tags: ${{ steps.ecr.outputs.registry }}/${{ env.PROJECT }}-backend:${{ github.sha }}
+          cache-from: type=gha,scope=backend
+          cache-to: type=gha,scope=backend,mode=max
+
+      - name: Update Lambda
+        run: |
+          aws lambda update-function-code \
+            --function-name "$PROJECT-backend" \
+            --image-uri "${{ steps.ecr.outputs.registry }}/$PROJECT-backend:${{ github.sha }}" \
+            --output text --query LastUpdateStatus
+          aws lambda wait function-updated --function-name "$PROJECT-backend"
+
+  browser-tester:
+    needs: changes
+    if: needs.changes.outputs.browser-tester == 'true' || github.event_name == 'workflow_dispatch'
+    strategy:
+      fail-fast: false
+      matrix:
+        region:
+          - { name: uk, aws: eu-west-2 }
+          - { name: us, aws: us-east-1 }
+          - { name: germany, aws: eu-central-1 }
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.AWS_DEPLOY_ROLE_ARN }}
+          aws-region: ${{ matrix.region.aws }}
+
+      - id: ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - uses: docker/setup-qemu-action@v3
+        with:
+          platforms: arm64
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Build and push
+        uses: docker/build-push-action@v6
+        with:
+          context: browser-tester
+          platforms: linux/arm64
+          push: true
+          provenance: false
+          tags: ${{ steps.ecr.outputs.registry }}/${{ env.PROJECT }}-${{ matrix.region.name }}-browser-tester:${{ github.sha }}
+          cache-from: type=gha,scope=browser-tester
+          cache-to: type=gha,scope=browser-tester,mode=max
+
+      # The backend launches the task family's latest ACTIVE revision, so a
+      # new revision pointing at the new image is all it takes to roll out.
+      - name: Register new task definition revision
+        run: |
+          family="$PROJECT-${{ matrix.region.name }}-browser-tester"
+          image="${{ steps.ecr.outputs.registry }}/$family:${{ github.sha }}"
+          aws ecs describe-task-definition --task-definition "$family" \
+            --query taskDefinition > taskdef.json
+          jq --arg image "$image" '
+            .containerDefinitions[0].image = $image
+            | del(.taskDefinitionArn, .revision, .status, .requiresAttributes,
+                  .compatibilities, .registeredAt, .registeredBy)
+          ' taskdef.json > new-taskdef.json
+          aws ecs register-task-definition --cli-input-json file://new-taskdef.json \
+            --query taskDefinition.taskDefinitionArn --output text
+
+  frontend:
+    needs: changes
+    if: needs.changes.outputs.frontend == 'true' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: "npm"
+          cache-dependency-path: frontend/package-lock.json
+
+      - run: npm ci
+      - run: npm run build
+
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.AWS_DEPLOY_ROLE_ARN }}
+          aws-region: ${{ env.BACKEND_REGION }}
+
+      # Hashed assets are immutable; index.html must always be revalidated
+      # so a deploy shows up immediately.
+      - name: Sync to S3
+        run: |
+          aws s3 sync dist "s3://$PROJECT-frontend" --delete \
+            --exclude index.html --cache-control "public,max-age=31536000,immutable"
+          aws s3 cp dist/index.html "s3://$PROJECT-frontend/index.html" \
+            --cache-control "no-cache"

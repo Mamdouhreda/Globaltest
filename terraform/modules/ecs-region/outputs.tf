@@ -42,3 +42,13 @@ output "task_definition_arn" {
   description = "ARN of the browser-tester ECS task definition, for RunTask to launch."
   value       = aws_ecs_task_definition.browser_tester.arn
 }
+
+output "task_definition_family" {
+  description = "Family of the browser-tester task definition. RunTask given a bare family runs its latest ACTIVE revision, so CI can register new revisions without updating the backend."
+  value       = aws_ecs_task_definition.browser_tester.family
+}
+
+output "ecr_repository_arn" {
+  description = "ARN of the browser-tester ECR repository."
+  value       = aws_ecr_repository.browser_tester.arn
+}
