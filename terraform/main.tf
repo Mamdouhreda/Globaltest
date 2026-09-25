@@ -313,11 +313,36 @@ resource "aws_apigatewayv2_route" "backend" {
   target    = "integrations/${aws_apigatewayv2_integration.backend.id}"
 }
 
+# Access logs so there's a record of who hit the API (source IP, route,
+# status). Short retention keeps storage cost at effectively $0.
+resource "aws_cloudwatch_log_group" "backend_apigw_access" {
+  provider          = aws.us
+  name              = "/aws/apigateway/${var.project_name}-backend-access"
+  retention_in_days = 7
+
+  tags = var.tags
+}
+
 resource "aws_apigatewayv2_stage" "backend" {
   provider    = aws.us
   api_id      = aws_apigatewayv2_api.backend.id
   name        = "$default"
   auto_deploy = true
+
+  access_log_settings {
+    destination_arn = aws_cloudwatch_log_group.backend_apigw_access.arn
+    format = jsonencode({
+      requestId      = "$context.requestId"
+      requestTime    = "$context.requestTime"
+      sourceIp       = "$context.identity.sourceIp"
+      userAgent      = "$context.identity.userAgent"
+      httpMethod     = "$context.httpMethod"
+      path           = "$context.path"
+      status         = "$context.status"
+      responseLength = "$context.responseLength"
+      latencyMs      = "$context.responseLatency"
+    })
+  }
 
   tags = var.tags
 }
