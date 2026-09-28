@@ -125,6 +125,7 @@ function App() {
   const [testedUrl, setTestedUrl] = useState('');
   const [results, setResults] = useState<Record<string, RegionResult>>({});
   const inputRef = useRef<HTMLInputElement>(null);
+  const resultsRef = useRef<HTMLDivElement>(null);
 
   const isSubmitting = Object.values(results).some((result) => result.state === 'running');
 
@@ -159,6 +160,7 @@ function App() {
     const regions = REGIONS.filter((region) => selected.includes(region.value)).map((region) => region.value);
     setTestedUrl(target);
     setResults(Object.fromEntries(regions.map((region) => [region, { state: 'running', message: 'Starting browser…' }])));
+    requestAnimationFrame(() => resultsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' }));
 
     await Promise.all(
       regions.map(async (region) => {
@@ -177,7 +179,9 @@ function App() {
 
   return (
     <div className="hero-bg min-h-screen text-slate-800">
-      <section className="relative flex min-h-screen flex-col items-center justify-center overflow-hidden px-4 py-16">
+      {/* Top padding puts the search at the vertical center, where justify-center
+          used to, so the hero stays put when results appear below it. */}
+      <section className="relative flex min-h-screen flex-col items-center overflow-hidden px-4 pb-20 pt-[max(4rem,calc(50vh-95px))]">
         <div className="pointer-events-none absolute inset-0" aria-hidden>
           <div className="glow glow-yellow" />
           <div className="glow glow-mint" />
@@ -185,78 +189,80 @@ function App() {
           <div className="glow glow-white" />
         </div>
 
-        <Globe />
+        <div className="relative flex w-full max-w-[880px] justify-center">
+          <Globe />
 
-        <form onSubmit={handleSubmit} className="relative z-10 flex w-full max-w-[880px] flex-col items-center gap-6">
-          <div className="glass-shell relative w-full rounded-[32px] p-3 sm:p-[22px]">
-            <span className="glass-streak left-[28%] top-0 w-[34%]" aria-hidden />
-            <span className="glass-streak bottom-0 left-[53%] w-[32%]" aria-hidden />
-            <label className="glass-field flex h-16 items-center gap-4 rounded-[22px] px-5 sm:h-20 sm:px-7">
-              <SearchIcon />
-              <span className="sr-only">Website URL</span>
-              <input
-                ref={inputRef}
-                type="text"
-                inputMode="url"
-                required
-                value={url}
-                onChange={(event) => setUrl(event.target.value)}
-                placeholder="Paste a website to see it from anywhere…"
-                className="min-w-0 flex-1 bg-transparent text-base text-slate-800 outline-none placeholder:text-slate-500 sm:text-[22px]"
-              />
-              {url ? (
-                <button
-                  type="submit"
-                  disabled={isSubmitting || selected.length === 0}
-                  className="shrink-0 rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-50"
-                >
-                  {isSubmitting ? 'Testing…' : 'Test'}
-                </button>
-              ) : (
-                <span className="hidden shrink-0 items-center gap-1.5 text-[13px] font-medium text-slate-500 sm:flex" aria-hidden>
-                  <kbd className="key">⌘</kbd>+<kbd className="key">K</kbd>
-                </span>
-              )}
-            </label>
+          <form onSubmit={handleSubmit} className="relative z-10 flex w-full flex-col items-center gap-6">
+            <div className="glass-shell relative w-full rounded-[32px] p-3 sm:p-[22px]">
+              <span className="glass-streak left-[28%] top-0 w-[34%]" aria-hidden />
+              <span className="glass-streak bottom-0 left-[53%] w-[32%]" aria-hidden />
+              <label className="glass-field flex h-16 items-center gap-4 rounded-[22px] px-5 sm:h-20 sm:px-7">
+                <SearchIcon />
+                <span className="sr-only">Website URL</span>
+                <input
+                  ref={inputRef}
+                  type="text"
+                  inputMode="url"
+                  required
+                  value={url}
+                  onChange={(event) => setUrl(event.target.value)}
+                  placeholder="Paste a website to see it from anywhere…"
+                  className="min-w-0 flex-1 bg-transparent text-base text-slate-800 outline-none placeholder:text-slate-500 sm:text-[22px]"
+                />
+                {url ? (
+                  <button
+                    type="submit"
+                    disabled={isSubmitting || selected.length === 0}
+                    className="shrink-0 rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    {isSubmitting ? 'Testing…' : 'Test'}
+                  </button>
+                ) : (
+                  <span className="hidden shrink-0 items-center gap-1.5 text-[13px] font-medium text-slate-500 sm:flex" aria-hidden>
+                    <kbd className="key">⌘</kbd>+<kbd className="key">K</kbd>
+                  </span>
+                )}
+              </label>
+            </div>
+  
+            <fieldset className="flex min-w-0 max-w-full flex-wrap justify-center gap-2.5">
+              <legend className="sr-only">Countries to test from</legend>
+              {REGIONS.map((region) => {
+                const checked = selected.includes(region.value);
+                return (
+                  <label
+                    key={region.value}
+                    className={`country-chip flex cursor-pointer items-center gap-2 rounded-full py-2 pl-3 pr-4 text-sm font-medium transition ${checked ? 'is-checked' : ''}`}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={checked}
+                      onChange={() => toggleRegion(region.value)}
+                      className="size-4 accent-emerald-600"
+                    />
+                    <span aria-hidden>{region.flag}</span>
+                    {region.label}
+                  </label>
+                );
+              })}
+            </fieldset>
+            {selected.length === 0 && <p className="text-sm text-slate-600">Pick at least one country.</p>}
+          </form>
+        </div>
+
+        {resultRegions.length > 0 && (
+          <div ref={resultsRef} className="relative z-10 mt-40 w-full max-w-6xl scroll-mt-8">
+            <h2 className="mb-6 text-center text-lg font-semibold text-slate-700">
+              <span className="break-all">{testedUrl}</span> around the world
+            </h2>
+            <div className="grid gap-5 sm:grid-cols-2">
+              {resultRegions.map((region) => (
+                <ResultCard key={region.value} region={region} result={results[region.value]} />
+              ))}
+            </div>
           </div>
-
-          <fieldset className="flex min-w-0 max-w-full flex-wrap justify-center gap-2.5">
-            <legend className="sr-only">Countries to test from</legend>
-            {REGIONS.map((region) => {
-              const checked = selected.includes(region.value);
-              return (
-                <label
-                  key={region.value}
-                  className={`country-chip flex cursor-pointer items-center gap-2 rounded-full py-2 pl-3 pr-4 text-sm font-medium transition ${checked ? 'is-checked' : ''}`}
-                >
-                  <input
-                    type="checkbox"
-                    checked={checked}
-                    onChange={() => toggleRegion(region.value)}
-                    className="size-4 accent-emerald-600"
-                  />
-                  <span aria-hidden>{region.flag}</span>
-                  {region.label}
-                </label>
-              );
-            })}
-          </fieldset>
-          {selected.length === 0 && <p className="text-sm text-slate-600">Pick at least one country.</p>}
-        </form>
+        )}
       </section>
-
-      {resultRegions.length > 0 && (
-        <section className="relative z-10 mx-auto max-w-6xl px-4 pb-20">
-          <h2 className="mb-6 text-center text-lg font-semibold text-slate-700">
-            <span className="break-all">{testedUrl}</span> around the world
-          </h2>
-          <div className="grid gap-5 sm:grid-cols-2">
-            {resultRegions.map((region) => (
-              <ResultCard key={region.value} region={region} result={results[region.value]} />
-            ))}
-          </div>
-        </section>
-      )}
     </div>
   );
 }
