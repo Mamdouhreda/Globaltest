@@ -98,6 +98,10 @@ jobs:
           - { name: us, aws: us-east-1 }
           - { name: germany, aws: eu-central-1 }
           - { name: australia, aws: ap-southeast-2 }
+          - { name: ireland, aws: eu-west-1 }
+          - { name: uae, aws: me-central-1 }
+          - { name: india, aws: ap-south-1 }
+          - { name: brazil, aws: sa-east-1 }
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4

@@ -17,12 +17,20 @@ variable "regions" {
     us        = string
     germany   = string
     australia = string
+    ireland   = string
+    uae       = string
+    india     = string
+    brazil    = string
   })
   default = {
     uk        = "eu-west-2"
     us        = "us-east-1"
     germany   = "eu-central-1"
     australia = "ap-southeast-2"
+    ireland   = "eu-west-1"
+    uae       = "me-central-1" # opt-in region: enable it in the AWS account first
+    india     = "ap-south-1"
+    brazil    = "sa-east-1"
   }
 }
 
@@ -33,12 +41,20 @@ variable "vpc_cidrs" {
     us        = string
     germany   = string
     australia = string
+    ireland   = string
+    uae       = string
+    india     = string
+    brazil    = string
   })
   default = {
     uk        = "10.10.0.0/16"
     us        = "10.20.0.0/16"
     germany   = "10.30.0.0/16"
     australia = "10.40.0.0/16"
+    ireland   = "10.50.0.0/16"
+    uae       = "10.60.0.0/16"
+    india     = "10.70.0.0/16"
+    brazil    = "10.80.0.0/16"
   }
 }
 

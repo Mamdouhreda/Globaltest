@@ -13,6 +13,7 @@ import (
 	"net/http"
 	"os"
 	"regexp"
+	"strings"
 	"time"
 
 	"github.com/aws/aws-lambda-go/lambda"
@@ -26,8 +27,8 @@ import (
 
 type urlRequest struct {
 	URL string `json:"url"`
-	// Region selects which AWS region runs the test: "uk", "us",
-	// "germany", or "australia". Left empty (or "local") to run Chromium
+	// Region selects which AWS region runs the test: one of testingRegions
+	// (e.g. "uk"). Left empty (or "local") to run Chromium
 	// locally instead — the original dev-time behavior, kept as a fallback
 	// for testing without any AWS infrastructure deployed.
 	Region string `json:"region,omitempty"`
@@ -123,7 +124,7 @@ func receiveURLLocal(w http.ResponseWriter, url string) {
 func receiveURLFargate(w http.ResponseWriter, r *http.Request, url, region string) {
 	cfg, ok := loadRegionConfigs()[region]
 	if !ok {
-		http.Error(w, fmt.Sprintf("unknown region %q (expected uk, us, germany, or australia)", region), http.StatusBadRequest)
+		http.Error(w, fmt.Sprintf("unknown region %q (expected one of: %s)", region, strings.Join(testingRegions, ", ")), http.StatusBadRequest)
 		return
 	}
 

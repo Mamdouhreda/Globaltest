@@ -54,6 +54,62 @@ output "australia" {
   }
 }
 
+output "ireland" {
+  description = "Ireland region infrastructure outputs."
+  value = {
+    cluster_name        = module.ireland.cluster_name
+    cluster_arn         = module.ireland.cluster_arn
+    vpc_id              = module.ireland.vpc_id
+    public_subnet_ids   = module.ireland.public_subnet_ids
+    security_group_id   = module.ireland.security_group_id
+    ecr_repository_url  = module.ireland.ecr_repository_url
+    task_execution_role = module.ireland.task_execution_role_arn
+    task_role           = module.ireland.task_role_arn
+  }
+}
+
+output "uae" {
+  description = "UAE region infrastructure outputs."
+  value = {
+    cluster_name        = module.uae.cluster_name
+    cluster_arn         = module.uae.cluster_arn
+    vpc_id              = module.uae.vpc_id
+    public_subnet_ids   = module.uae.public_subnet_ids
+    security_group_id   = module.uae.security_group_id
+    ecr_repository_url  = module.uae.ecr_repository_url
+    task_execution_role = module.uae.task_execution_role_arn
+    task_role           = module.uae.task_role_arn
+  }
+}
+
+output "india" {
+  description = "India region infrastructure outputs."
+  value = {
+    cluster_name        = module.india.cluster_name
+    cluster_arn         = module.india.cluster_arn
+    vpc_id              = module.india.vpc_id
+    public_subnet_ids   = module.india.public_subnet_ids
+    security_group_id   = module.india.security_group_id
+    ecr_repository_url  = module.india.ecr_repository_url
+    task_execution_role = module.india.task_execution_role_arn
+    task_role           = module.india.task_role_arn
+  }
+}
+
+output "brazil" {
+  description = "Brazil region infrastructure outputs."
+  value = {
+    cluster_name        = module.brazil.cluster_name
+    cluster_arn         = module.brazil.cluster_arn
+    vpc_id              = module.brazil.vpc_id
+    public_subnet_ids   = module.brazil.public_subnet_ids
+    security_group_id   = module.brazil.security_group_id
+    ecr_repository_url  = module.brazil.ecr_repository_url
+    task_execution_role = module.brazil.task_execution_role_arn
+    task_role           = module.brazil.task_role_arn
+  }
+}
+
 output "backend" {
   description = "Backend control-plane (Lambda) infrastructure outputs."
   value = {

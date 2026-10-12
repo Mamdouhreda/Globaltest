@@ -52,6 +52,10 @@ const REGIONS: Region[] = [
   { value: 'us', label: 'United States', flag: '🇺🇸' },
   { value: 'germany', label: 'Germany', flag: '🇩🇪' },
   { value: 'australia', label: 'Australia', flag: '🇦🇺' },
+  { value: 'ireland', label: 'Ireland', flag: '🇮🇪' },
+  { value: 'uae', label: 'UAE', flag: '🇦🇪' },
+  { value: 'india', label: 'India', flag: '🇮🇳' },
+  { value: 'brazil', label: 'Brazil', flag: '🇧🇷' },
 ];
 
 // Runs one test in one region. Regional tests start a Fargate task and are

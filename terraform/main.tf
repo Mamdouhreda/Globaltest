@@ -1,7 +1,7 @@
 # ---------------------------------------------------------------------------
 # One region = one instantiation of the ecs-region module. Adding a new
 # testing region later (e.g. Japan) means adding another block like these
-# four, not copying the underlying VPC/ECS/ECR/IAM resources.
+# eight, not copying the underlying VPC/ECS/ECR/IAM resources.
 # ---------------------------------------------------------------------------
 
 module "uk" {
@@ -61,6 +61,70 @@ module "australia" {
   region_name              = "australia"
   aws_region               = var.regions.australia
   vpc_cidr                 = var.vpc_cidrs.australia
+  project_name             = var.project_name
+  environment              = var.environment
+  browser_tester_image_tag = var.browser_tester_image_tag
+  results_bucket_arn       = aws_s3_bucket.results.arn
+  tags                     = var.tags
+}
+
+module "ireland" {
+  source = "./modules/ecs-region"
+  providers = {
+    aws = aws.ireland
+  }
+
+  region_name              = "ireland"
+  aws_region               = var.regions.ireland
+  vpc_cidr                 = var.vpc_cidrs.ireland
+  project_name             = var.project_name
+  environment              = var.environment
+  browser_tester_image_tag = var.browser_tester_image_tag
+  results_bucket_arn       = aws_s3_bucket.results.arn
+  tags                     = var.tags
+}
+
+module "uae" {
+  source = "./modules/ecs-region"
+  providers = {
+    aws = aws.uae
+  }
+
+  region_name              = "uae"
+  aws_region               = var.regions.uae
+  vpc_cidr                 = var.vpc_cidrs.uae
+  project_name             = var.project_name
+  environment              = var.environment
+  browser_tester_image_tag = var.browser_tester_image_tag
+  results_bucket_arn       = aws_s3_bucket.results.arn
+  tags                     = var.tags
+}
+
+module "india" {
+  source = "./modules/ecs-region"
+  providers = {
+    aws = aws.india
+  }
+
+  region_name              = "india"
+  aws_region               = var.regions.india
+  vpc_cidr                 = var.vpc_cidrs.india
+  project_name             = var.project_name
+  environment              = var.environment
+  browser_tester_image_tag = var.browser_tester_image_tag
+  results_bucket_arn       = aws_s3_bucket.results.arn
+  tags                     = var.tags
+}
+
+module "brazil" {
+  source = "./modules/ecs-region"
+  providers = {
+    aws = aws.brazil
+  }
+
+  region_name              = "brazil"
+  aws_region               = var.regions.brazil
+  vpc_cidr                 = var.vpc_cidrs.brazil
   project_name             = var.project_name
   environment              = var.environment
   browser_tester_image_tag = var.browser_tester_image_tag
@@ -168,6 +232,10 @@ data "aws_iam_policy_document" "backend_task_permissions" {
       "arn:aws:ecs:${var.regions.us}:*:task-definition/${var.project_name}-us-browser-tester:*",
       "arn:aws:ecs:${var.regions.germany}:*:task-definition/${var.project_name}-germany-browser-tester:*",
       "arn:aws:ecs:${var.regions.australia}:*:task-definition/${var.project_name}-australia-browser-tester:*",
+      "arn:aws:ecs:${var.regions.ireland}:*:task-definition/${var.project_name}-ireland-browser-tester:*",
+      "arn:aws:ecs:${var.regions.uae}:*:task-definition/${var.project_name}-uae-browser-tester:*",
+      "arn:aws:ecs:${var.regions.india}:*:task-definition/${var.project_name}-india-browser-tester:*",
+      "arn:aws:ecs:${var.regions.brazil}:*:task-definition/${var.project_name}-brazil-browser-tester:*",
     ]
   }
 
@@ -212,6 +280,14 @@ data "aws_iam_policy_document" "backend_task_permissions" {
       module.germany.task_role_arn,
       module.australia.task_execution_role_arn,
       module.australia.task_role_arn,
+      module.ireland.task_execution_role_arn,
+      module.ireland.task_role_arn,
+      module.uae.task_execution_role_arn,
+      module.uae.task_role_arn,
+      module.india.task_execution_role_arn,
+      module.india.task_role_arn,
+      module.brazil.task_execution_role_arn,
+      module.brazil.task_role_arn,
     ]
   }
 }
@@ -264,6 +340,30 @@ resource "aws_lambda_function" "backend" {
       FARGATE_AUSTRALIA_SUBNET_IDS          = join(",", module.australia.public_subnet_ids)
       FARGATE_AUSTRALIA_SECURITY_GROUP_ID   = module.australia.security_group_id
       FARGATE_AUSTRALIA_TASK_DEFINITION_ARN = module.australia.task_definition_family
+
+      FARGATE_IRELAND_AWS_REGION          = var.regions.ireland
+      FARGATE_IRELAND_CLUSTER_ARN         = module.ireland.cluster_arn
+      FARGATE_IRELAND_SUBNET_IDS          = join(",", module.ireland.public_subnet_ids)
+      FARGATE_IRELAND_SECURITY_GROUP_ID   = module.ireland.security_group_id
+      FARGATE_IRELAND_TASK_DEFINITION_ARN = module.ireland.task_definition_family
+
+      FARGATE_UAE_AWS_REGION          = var.regions.uae
+      FARGATE_UAE_CLUSTER_ARN         = module.uae.cluster_arn
+      FARGATE_UAE_SUBNET_IDS          = join(",", module.uae.public_subnet_ids)
+      FARGATE_UAE_SECURITY_GROUP_ID   = module.uae.security_group_id
+      FARGATE_UAE_TASK_DEFINITION_ARN = module.uae.task_definition_family
+
+      FARGATE_INDIA_AWS_REGION          = var.regions.india
+      FARGATE_INDIA_CLUSTER_ARN         = module.india.cluster_arn
+      FARGATE_INDIA_SUBNET_IDS          = join(",", module.india.public_subnet_ids)
+      FARGATE_INDIA_SECURITY_GROUP_ID   = module.india.security_group_id
+      FARGATE_INDIA_TASK_DEFINITION_ARN = module.india.task_definition_family
+
+      FARGATE_BRAZIL_AWS_REGION          = var.regions.brazil
+      FARGATE_BRAZIL_CLUSTER_ARN         = module.brazil.cluster_arn
+      FARGATE_BRAZIL_SUBNET_IDS          = join(",", module.brazil.public_subnet_ids)
+      FARGATE_BRAZIL_SECURITY_GROUP_ID   = module.brazil.security_group_id
+      FARGATE_BRAZIL_TASK_DEFINITION_ARN = module.brazil.task_definition_family
 
       RESULTS_BUCKET        = aws_s3_bucket.results.id
       RESULTS_BUCKET_REGION = var.regions.us

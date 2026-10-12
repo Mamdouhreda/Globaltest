@@ -26,13 +26,16 @@ type regionConfig struct {
 
 const browserTesterContainerName = "browser-tester"
 
+// testingRegions lists every supported testing region. Each needs a matching
+// set of FARGATE_<REGION>_* environment variables (see terraform/main.tf).
+var testingRegions = []string{"uk", "us", "germany", "australia", "ireland", "uae", "india", "brazil"}
+
 // loadRegionConfigs reads per-region Fargate settings from environment
 // variables, one set per supported testing region.
 func loadRegionConfigs() map[string]regionConfig {
-	regions := []string{"uk", "us", "germany", "australia"}
-	configs := make(map[string]regionConfig, len(regions))
+	configs := make(map[string]regionConfig, len(testingRegions))
 
-	for _, region := range regions {
+	for _, region := range testingRegions {
 		prefix := "FARGATE_" + strings.ToUpper(region) + "_"
 		configs[region] = regionConfig{
 			awsRegion:         os.Getenv(prefix + "AWS_REGION"),

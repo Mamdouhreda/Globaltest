@@ -2,7 +2,7 @@
 
 Infrastructure-as-code for GlobalTest's AWS ECS/Fargate browser-testing backend. See [../PROJECT_SUMMARY.md](../PROJECT_SUMMARY.md) for the overall architecture.
 
-This is **Phase 1 — infrastructure only**: VPC, ECS cluster, ECR repo, IAM roles, and security group, per region (UK, US, Germany). There is no ECS task definition yet and no code that launches a Fargate task — that comes once the Go + Chromium container image exists (Phase 2 onward). There's also no S3 bucket yet — one will be added later, likely for hosting frontend static files rather than screenshots.
+This is **Phase 1 — infrastructure only**: VPC, ECS cluster, ECR repo, IAM roles, and security group, per region (UK, US, Germany, Australia, Ireland, UAE, India, Brazil). There is no ECS task definition yet and no code that launches a Fargate task — that comes once the Go + Chromium container image exists (Phase 2 onward). There's also no S3 bucket yet — one will be added later, likely for hosting frontend static files rather than screenshots.
 
 ## Why this costs $0 while idle
 
@@ -18,7 +18,7 @@ Once tasks actually run, real costs are Fargate compute (billed per second while
 ```
 terraform/
 ├── versions.tf              # Terraform + AWS provider version constraints
-├── providers.tf              # aws.uk / aws.us / aws.germany provider aliases
+├── providers.tf              # one aws.<region> provider alias per testing region
 ├── variables.tf               # project-wide variables (regions, CIDRs, tags)
 ├── main.tf                    # instantiates the ecs-region module per region
 ├── outputs.tf                 # per-region outputs (cluster, ECR, IAM, etc.)
@@ -28,6 +28,17 @@ terraform/
 ```
 
 Adding a new testing region later means adding one more `module "..." { source = "./modules/ecs-region" ... }` block in `main.tf` — no duplication of the underlying resources.
+
+A new region also needs an entry in `variables.tf` (`regions` and `vpc_cidrs`), a provider alias in `providers.tf`, the backend Lambda's `FARGATE_<REGION>_*` variables and IAM statements in `main.tf`, the deploy role in `github-oidc.tf`, the `browser-tester` matrix in `.github/workflows/deploy.yml`, `testingRegions` in `backend/fargate.go` and `REGIONS` in `frontend/src/main.tsx`.
+
+## Opt-in regions
+
+UAE (`me-central-1`) is an opt-in region: it is disabled in new AWS accounts, and `terraform plan` fails until it is enabled.
+
+```sh
+aws account enable-region --region-name me-central-1
+aws account get-region-opt-status --region-name me-central-1   # wait for ENABLED
+```
 
 ## Usage
 
