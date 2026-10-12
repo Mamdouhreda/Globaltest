@@ -189,6 +189,8 @@ function App() {
           <div className="glow glow-white" />
         </div>
 
+        <h1 className="sr-only">GlobalTest — see how your website looks and loads from any country</h1>
+
         <div className="relative flex w-full max-w-[880px] justify-center">
           <Globe />
 
