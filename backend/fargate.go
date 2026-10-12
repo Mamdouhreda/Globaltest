@@ -28,7 +28,7 @@ const browserTesterContainerName = "browser-tester"
 
 // testingRegions lists every supported testing region. Each needs a matching
 // set of FARGATE_<REGION>_* environment variables (see terraform/main.tf).
-var testingRegions = []string{"uk", "us", "germany", "australia", "ireland", "uae", "india", "brazil"}
+var testingRegions = []string{"uk", "us", "germany", "australia", "ireland", "india", "brazil"}
 
 // loadRegionConfigs reads per-region Fargate settings from environment
 // variables, one set per supported testing region.

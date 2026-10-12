@@ -2,7 +2,7 @@
 
 Infrastructure-as-code for GlobalTest's AWS ECS/Fargate browser-testing backend. See [../PROJECT_SUMMARY.md](../PROJECT_SUMMARY.md) for the overall architecture.
 
-This is **Phase 1 — infrastructure only**: VPC, ECS cluster, ECR repo, IAM roles, and security group, per region (UK, US, Germany, Australia, Ireland, UAE, India, Brazil). There is no ECS task definition yet and no code that launches a Fargate task — that comes once the Go + Chromium container image exists (Phase 2 onward). There's also no S3 bucket yet — one will be added later, likely for hosting frontend static files rather than screenshots.
+This is **Phase 1 — infrastructure only**: VPC, ECS cluster, ECR repo, IAM roles, and security group, per region (UK, US, Germany, Australia, Ireland, India, Brazil). There is no ECS task definition yet and no code that launches a Fargate task — that comes once the Go + Chromium container image exists (Phase 2 onward). There's also no S3 bucket yet — one will be added later, likely for hosting frontend static files rather than screenshots.
 
 ## Why this costs $0 while idle
 
@@ -33,12 +33,9 @@ A new region also needs an entry in `variables.tf` (`regions` and `vpc_cidrs`), 
 
 ## Opt-in regions
 
-UAE (`me-central-1`) is an opt-in region: it is disabled in new AWS accounts, and `terraform plan` fails until it is enabled.
+Regions launched after March 2019 (e.g. UAE `me-central-1`) are disabled in new AWS accounts, and `terraform plan` fails until the region is enabled with `aws account enable-region --region-name <region>`.
 
-```sh
-aws account enable-region --region-name me-central-1
-aws account get-region-opt-status --region-name me-central-1   # wait for ENABLED
-```
+UAE was tried and dropped: AWS reported availability zone `mec1-az2` as unavailable, and the region's subnet and ECS cluster creation never completed.
 
 ## Usage
 

@@ -35,7 +35,6 @@ const COUNTRIES: Region[] = [
   { value: 'germany', label: 'Germany', flag: '🇩🇪' },
   { value: 'australia', label: 'Australia', flag: '🇦🇺' },
   { value: 'ireland', label: 'Ireland', flag: '🇮🇪' },
-  { value: 'uae', label: 'UAE', flag: '🇦🇪' },
   { value: 'india', label: 'India', flag: '🇮🇳' },
   { value: 'brazil', label: 'Brazil', flag: '🇧🇷' },
 ];

@@ -18,7 +18,6 @@ variable "regions" {
     germany   = string
     australia = string
     ireland   = string
-    uae       = string
     india     = string
     brazil    = string
   })
@@ -28,7 +27,6 @@ variable "regions" {
     germany   = "eu-central-1"
     australia = "ap-southeast-2"
     ireland   = "eu-west-1"
-    uae       = "me-central-1" # opt-in region: enable it in the AWS account first
     india     = "ap-south-1"
     brazil    = "sa-east-1"
   }
@@ -42,7 +40,6 @@ variable "vpc_cidrs" {
     germany   = string
     australia = string
     ireland   = string
-    uae       = string
     india     = string
     brazil    = string
   })
@@ -52,7 +49,6 @@ variable "vpc_cidrs" {
     germany   = "10.30.0.0/16"
     australia = "10.40.0.0/16"
     ireland   = "10.50.0.0/16"
-    uae       = "10.60.0.0/16"
     india     = "10.70.0.0/16"
     brazil    = "10.80.0.0/16"
   }

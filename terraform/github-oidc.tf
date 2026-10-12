@@ -100,7 +100,6 @@ data "aws_iam_policy_document" "github_deploy" {
       module.germany.ecr_repository_arn,
       module.australia.ecr_repository_arn,
       module.ireland.ecr_repository_arn,
-      module.uae.ecr_repository_arn,
       module.india.ecr_repository_arn,
       module.brazil.ecr_repository_arn,
     ]
@@ -125,8 +124,6 @@ data "aws_iam_policy_document" "github_deploy" {
       module.australia.task_role_arn,
       module.ireland.task_execution_role_arn,
       module.ireland.task_role_arn,
-      module.uae.task_execution_role_arn,
-      module.uae.task_role_arn,
       module.india.task_execution_role_arn,
       module.india.task_role_arn,
       module.brazil.task_execution_role_arn,

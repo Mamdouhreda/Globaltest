@@ -16,7 +16,7 @@ This is very much a work in progress, and the pieces are at different stages:
 
 - **Frontend** — a minimal React page: URL in, screenshot out. Works today against a backend running locally.
 - **Backend** — a Go server that currently runs Chromium *locally* to serve requests. The AWS-calling code exists ([backend/fargate.go](backend/fargate.go)) but isn't wired into the request path yet.
-- **Terraform** — infrastructure for eight regions (UK, US, Germany, Australia, Ireland, UAE, India, Brazil) is written and validated, but has never been applied to a real AWS account. VPC, ECS cluster, ECR, IAM — the empty shell is there; the actual browser-testing container and task definition are still being built.
+- **Terraform** — infrastructure for seven regions (UK, US, Germany, Australia, Ireland, India, Brazil) is written and validated, but has never been applied to a real AWS account. VPC, ECS cluster, ECR, IAM — the empty shell is there; the actual browser-testing container and task definition are still being built.
 
 If you're poking around the code, don't be surprised to find scaffolding next to real working parts — that's exactly where this project is right now.
 

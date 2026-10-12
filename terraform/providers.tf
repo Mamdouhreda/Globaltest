@@ -24,11 +24,6 @@ provider "aws" {
 }
 
 provider "aws" {
-  alias  = "uae"
-  region = var.regions.uae
-}
-
-provider "aws" {
   alias  = "india"
   region = var.regions.india
 }

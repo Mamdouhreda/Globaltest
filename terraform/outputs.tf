@@ -68,20 +68,6 @@ output "ireland" {
   }
 }
 
-output "uae" {
-  description = "UAE region infrastructure outputs."
-  value = {
-    cluster_name        = module.uae.cluster_name
-    cluster_arn         = module.uae.cluster_arn
-    vpc_id              = module.uae.vpc_id
-    public_subnet_ids   = module.uae.public_subnet_ids
-    security_group_id   = module.uae.security_group_id
-    ecr_repository_url  = module.uae.ecr_repository_url
-    task_execution_role = module.uae.task_execution_role_arn
-    task_role           = module.uae.task_role_arn
-  }
-}
-
 output "india" {
   description = "India region infrastructure outputs."
   value = {
