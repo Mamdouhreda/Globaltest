@@ -3,7 +3,7 @@
 @layer base {
   :root {
     color: #17202a;
-    background: #faf1d6;
+    background: #e6f7ec;
     font-family:
       "Plus Jakarta Sans", Inter, ui-sans-serif, system-ui, -apple-system,
       BlinkMacSystemFont, "Segoe UI", sans-serif;
@@ -11,6 +11,18 @@
 
   body {
     margin: 0;
+  }
+  /* A thin green line edged in off-white closes the page at the top and
+     the bottom */
+  body::before,
+  body::after {
+    content: "";
+    display: block;
+    height: 6px;
+    background: linear-gradient(#15803d 4px, #fafaf5 4px);
+  }
+  body::after {
+    background: linear-gradient(#fafaf5 2px, #15803d 2px);
   }
 
   button {
@@ -28,55 +40,35 @@
 }
 
 @layer components {
-  .hero-bg {
-    background: #faf1d6;
-  }
-
-  /* Background glow — soft blurred color fields from the Figma hero */
+  /* Background glow — soft blurred green fields behind the hero */
   .glow {
     position: absolute;
     border-radius: 9999px;
     filter: blur(90px);
   }
-  .glow-yellow {
+  .glow-green {
     left: 15%;
     top: 0;
     width: 70%;
     height: 520px;
-    background: #fde68a;
-    opacity: 0.75;
+    background: #bbf7d0;
+    opacity: 0.8;
   }
   .glow-mint {
     left: -15%;
     top: -180px;
     width: 53%;
     height: 420px;
-    background: #a7f3d0;
-    opacity: 0.9;
+    background: #6ee7b7;
+    opacity: 0.7;
   }
-  .glow-peach {
+  .glow-lime {
     right: -15%;
     top: 380px;
     width: 53%;
     height: 420px;
-    background: #fdba8c;
-    opacity: 0.6;
-  }
-
-  /* Earth ball */
-  .globe {
-    background: radial-gradient(circle at 35% 30%, #3fb6c4 0%, #1f8a9e 45%, #13627a 80%, #0e4d63 100%);
-    box-shadow:
-      inset 0 0 0 2px rgb(255 255 255 / 0.25),
-      0 0 28px rgb(163 230 53 / 0.45);
-  }
-  .globe-shade {
-    background:
-      radial-gradient(circle at 50% 90%, rgb(125 211 252 / 0.35), transparent 40%),
-      radial-gradient(circle at 32% 28%, transparent 35%, rgb(4 47 66 / 0.55) 100%);
-  }
-  .globe-float {
-    animation: float 6s ease-in-out infinite;
+    background: #d9f99d;
+    opacity: 0.7;
   }
 
   /* Address field */
@@ -84,7 +76,7 @@
     background: rgb(255 255 255 / 0.75);
     border: 1px solid rgb(15 23 42 / 0.12);
     backdrop-filter: blur(12px);
-    box-shadow: 0 12px 32px rgb(120 90 20 / 0.12);
+    box-shadow: 0 12px 32px rgb(6 78 59 / 0.12);
     cursor: text;
     transition:
       border-color 150ms,
@@ -97,7 +89,7 @@
     border-color: #047857;
     box-shadow:
       0 0 0 3px rgb(4 120 87 / 0.25),
-      0 12px 32px rgb(120 90 20 / 0.12);
+      0 12px 32px rgb(6 78 59 / 0.12);
   }
   .glass-field.is-invalid {
     border-color: #be123c;
@@ -115,17 +107,17 @@
     height: 40px;
     padding: 0 20px;
     border-radius: 12px;
-    background: #0f172a;
+    background: #047857;
     color: #fff;
     font-size: 15px;
     font-weight: 600;
     transition: background-color 150ms;
   }
   .primary-button:hover:not(:disabled) {
-    background: #334155;
+    background: #065f46;
   }
   .primary-button:disabled {
-    background: #475569;
+    background: #3f6b5c;
   }
   .spinner {
     width: 14px;
@@ -136,28 +128,76 @@
     animation: spin 0.8s linear infinite;
   }
 
-  /* Country checkboxes */
-  .country-chip {
-    background: rgb(255 255 255 / 0.5);
+  /* Country picker: a button that opens a list of countries with flags */
+  .flag {
+    display: block;
+    width: 21px;
+    height: 14px;
+    border-radius: 2px;
+    box-shadow: 0 0 0 1px rgb(15 23 42 / 0.12);
+  }
+  .country-button {
+    display: inline-flex;
+    max-width: 100%;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: center;
+    gap: 6px 10px;
+    min-height: 44px;
+    padding: 8px 14px 8px 16px;
+    border-radius: 9999px;
+    background: rgb(255 255 255 / 0.75);
     border: 1px solid rgb(15 23 42 / 0.12);
+    font-size: 14px;
     transition:
       background-color 150ms,
       border-color 150ms;
   }
-  .country-chip:hover {
-    background: rgb(255 255 255 / 0.8);
+  .country-button:hover {
+    background: #fff;
     border-color: rgb(15 23 42 / 0.25);
   }
-  .country-chip.is-checked {
+  .country-button.is-open {
     background: #fff;
     border-color: #047857;
   }
-  /* The whole chip shows the ring for the checkbox inside it */
-  .country-chip:has(:focus-visible) {
-    outline: 2px solid #047857;
-    outline-offset: 2px;
+  .country-panel {
+    position: absolute;
+    left: 50%;
+    top: calc(100% + 8px);
+    z-index: 20;
+    width: min(288px, calc(100vw - 32px));
+    transform: translateX(-50%);
+    overflow: hidden;
+    border-radius: 16px;
+    border: 1px solid rgb(15 23 42 / 0.12);
+    background: #fff;
+    box-shadow: 0 16px 40px rgb(6 78 59 / 0.22);
   }
-  .country-chip input:focus-visible {
+  .country-option {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    min-height: 40px;
+    padding: 0 10px;
+    border-radius: 10px;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+  }
+  .country-option:hover {
+    background: #ecfdf5;
+  }
+  .country-option.is-checked {
+    color: #064e3b;
+    font-weight: 600;
+  }
+  /* The whole row shows the ring for the checkbox inside it */
+  .country-option:has(:focus-visible) {
+    outline: 2px solid #047857;
+    outline-offset: -2px;
+  }
+  .country-option input:focus-visible {
     outline: none;
   }
   .text-button {
@@ -165,7 +205,7 @@
     transition: background-color 150ms;
   }
   .text-button:hover {
-    background: rgb(255 255 255 / 0.6);
+    background: #ecfdf5;
   }
 
   /* Results: as many compact cards per row as fit */
@@ -184,7 +224,7 @@
     background: rgb(255 255 255 / 0.6);
     border: 1px solid rgb(255 255 255 / 0.8);
     backdrop-filter: blur(16px);
-    box-shadow: 0 8px 24px rgb(120 90 20 / 0.1);
+    box-shadow: 0 8px 24px rgb(6 78 59 / 0.1);
   }
   /* Screenshots are 1280x720; other states may grow past that shape */
   .result-body {
@@ -257,15 +297,409 @@
   .fade-in {
     animation: fade-in 300ms ease-out;
   }
+
+  /* Example website chooser, set inside its heading */
+  .site-select {
+    appearance: none;
+    cursor: pointer;
+    border-radius: 12px;
+    padding: 2px 40px 4px 12px;
+    background: #d1fae5
+      url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23047857' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E")
+      right 10px center / 22px no-repeat;
+    color: #047857;
+    font: inherit;
+    transition: background-color 150ms;
+  }
+  .site-select:hover {
+    background-color: #a7f3d0;
+  }
+
+  /* World map with a checkpoint pin on every country */
+  .world-map {
+    position: relative;
+    aspect-ratio: 1600 / 604;
+  }
+  .world-map-image {
+    position: absolute;
+    inset: 0;
+    border-radius: 20px;
+    background: #0b2a4a url("./assets/world-map.jpg") center / cover;
+    filter: brightness(1.3) saturate(1.2);
+    box-shadow: 0 16px 40px rgb(6 78 59 / 0.25);
+  }
+  /* The button is a zero-size point on the city; the pin grows up from it */
+  .map-pin {
+    position: absolute;
+    width: 0;
+    height: 0;
+  }
+  .map-pin:focus-visible {
+    outline: none;
+  }
+  .map-pin-dot {
+    position: absolute;
+    left: -4px;
+    top: -4px;
+    width: 8px;
+    height: 8px;
+    border-radius: 9999px;
+    background: #fff;
+    box-shadow: 0 0 0 2px rgb(15 23 42 / 0.5);
+  }
+  .map-pin.is-checked .map-pin-dot {
+    background: #34d399;
+    animation: pin-pulse 2s ease-out infinite;
+  }
+  /* A stem from the city up to the flag, tilted by --lean */
+  .map-pin-body {
+    position: absolute;
+    left: -1px;
+    bottom: 0;
+    width: 2px;
+    height: 20px;
+    background: #fff;
+    transform: rotate(var(--lean));
+    transform-origin: bottom center;
+  }
+  .map-pin-head {
+    position: absolute;
+    left: -14px;
+    bottom: 100%;
+    width: 30px;
+    height: 30px;
+    border-radius: 9999px;
+    border: 2px solid #fff;
+    background: #fff;
+    box-shadow: 0 4px 10px rgb(2 12 32 / 0.5);
+    transform: rotate(calc(-1 * var(--lean)));
+    transition:
+      transform 150ms,
+      border-color 150ms;
+  }
+  .map-pin:hover .map-pin-head,
+  .map-pin:focus-visible .map-pin-head {
+    transform: rotate(calc(-1 * var(--lean))) scale(1.15);
+  }
+  .map-pin:focus-visible .map-pin-head {
+    outline: 2px solid #fff;
+    outline-offset: 2px;
+  }
+  .map-pin.is-checked .map-pin-head {
+    border-color: #34d399;
+  }
+  /* The flag, cropped to a circle; grey until its country is chosen */
+  .map-pin-flag {
+    display: block;
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+    border-radius: 9999px;
+    filter: grayscale(1) opacity(0.75);
+    transition: filter 150ms;
+  }
+  .map-pin.is-checked .map-pin-flag {
+    filter: none;
+  }
+  .map-pin-flag .flag {
+    width: 39px;
+    max-width: none;
+    height: 26px;
+    margin-left: -6.5px;
+    border-radius: 0;
+    box-shadow: none;
+  }
+  .map-pin-check {
+    position: absolute;
+    right: -7px;
+    top: -7px;
+    display: flex;
+    width: 16px;
+    height: 16px;
+    align-items: center;
+    justify-content: center;
+    border-radius: 9999px;
+    border: 1.5px solid #fff;
+    background: #047857;
+    color: #fff;
+    animation: pin-pop 200ms ease-out;
+  }
+  .map-pin-label {
+    position: absolute;
+    left: 50%;
+    bottom: calc(100% + 8px);
+    z-index: 1;
+    transform: translateX(-50%);
+    border-radius: 8px;
+    background: #0f172a;
+    padding: 3px 8px;
+    color: #fff;
+    font-size: 12px;
+    font-weight: 600;
+    white-space: nowrap;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 150ms;
+  }
+  .map-pin:hover,
+  .map-pin:focus-visible {
+    z-index: 1;
+  }
+  .map-pin:hover .map-pin-label,
+  .map-pin:focus-visible .map-pin-label {
+    opacity: 1;
+  }
+
+  /* Written guide below the tool; its markup is in index.html and guide.ts
+     animates it */
+  .guide {
+    border-top: 1px solid rgb(6 78 59 / 0.12);
+    background: #f4fbf6;
+    padding: 56px 16px 32px;
+    color: #334155;
+    font-size: 16px;
+    line-height: 1.65;
+  }
+  .guide > * {
+    max-width: 960px;
+    margin-inline: auto;
+  }
+  .guide section + section {
+    margin-top: 64px;
+  }
+  .guide h2 {
+    margin-bottom: 20px;
+    color: #064e3b;
+    font-size: 28px;
+    font-weight: 700;
+    line-height: 1.2;
+    letter-spacing: -0.01em;
+    text-align: center;
+  }
+  .guide h3 {
+    color: #0f172a;
+    font-size: 17px;
+    font-weight: 600;
+    line-height: 1.35;
+  }
+  .guide p + p {
+    margin-top: 12px;
+  }
+  .guide section > p {
+    max-width: 720px;
+    margin-inline: auto;
+    text-align: center;
+  }
+  .guide .reveal {
+    transition:
+      opacity 500ms ease-out,
+      transform 500ms ease-out;
+  }
+  .guide .reveal.is-waiting {
+    opacity: 0;
+    transform: translateY(24px);
+  }
+
+  .guide-intro {
+    border-radius: 24px;
+    background: linear-gradient(135deg, #065f46, #047857 55%, #0d9488);
+    padding: 40px 24px;
+    color: #ecfdf5;
+    box-shadow: 0 20px 48px rgb(6 78 59 / 0.25);
+  }
+  .guide .guide-intro h2 {
+    color: #fff;
+  }
+
+  /* Three numbered steps joined by a line */
+  .steps {
+    display: grid;
+    gap: 16px;
+    margin-bottom: 24px;
+    counter-reset: step;
+  }
+  .steps li {
+    position: relative;
+    border-radius: 20px;
+    border: 1px solid rgb(6 78 59 / 0.12);
+    background: #fff;
+    padding: 44px 20px 20px;
+    text-align: center;
+    counter-increment: step;
+  }
+  .steps li::before {
+    content: counter(step);
+    position: absolute;
+    left: 50%;
+    top: -18px;
+    display: flex;
+    width: 44px;
+    height: 44px;
+    transform: translateX(-50%);
+    align-items: center;
+    justify-content: center;
+    border-radius: 9999px;
+    border: 4px solid #f4fbf6;
+    background: #047857;
+    color: #fff;
+    font-size: 18px;
+    font-weight: 700;
+  }
+  @media (min-width: 720px) {
+    .steps {
+      grid-template-columns: repeat(3, 1fr);
+    }
+    .steps li + li::after {
+      content: "";
+      position: absolute;
+      right: calc(50% + 30px);
+      top: 3px;
+      width: calc(100% - 44px);
+      border-top: 2px dashed #6ee7b7;
+    }
+  }
+  @media (max-width: 719px) {
+    .steps {
+      gap: 32px;
+    }
+  }
+
+  .places {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 10px;
+  }
+  .places li {
+    display: flex;
+    flex-direction: column;
+    min-width: 132px;
+    border-radius: 16px;
+    border: 1px solid rgb(6 78 59 / 0.12);
+    background: #fff;
+    padding: 10px 16px;
+    text-align: center;
+    line-height: 1.35;
+  }
+  .places strong {
+    color: #064e3b;
+    font-weight: 600;
+  }
+  .places span {
+    color: #475569;
+    font-size: 14px;
+  }
+
+  .reasons {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+    gap: 16px;
+  }
+  .reasons li {
+    border-radius: 20px;
+    border: 1px solid rgb(6 78 59 / 0.12);
+    background: #fff;
+    padding: 20px;
+    transition:
+      opacity 500ms ease-out,
+      transform 200ms ease-out,
+      box-shadow 200ms,
+      border-color 200ms;
+  }
+  .reasons li:hover {
+    transform: translateY(-4px);
+    border-color: #6ee7b7;
+    box-shadow: 0 14px 30px rgb(6 78 59 / 0.14);
+  }
+  .reason-icon {
+    display: flex;
+    width: 44px;
+    height: 44px;
+    margin-bottom: 12px;
+    align-items: center;
+    justify-content: center;
+    border-radius: 14px;
+    background: #d1fae5;
+    font-size: 22px;
+  }
+  .reasons h3 {
+    margin-bottom: 4px;
+  }
+
+  /* Questions; guide.ts turns each one into a button that folds its answer */
+  .faq {
+    max-width: 720px;
+    margin-inline: auto;
+  }
+  .faq-item {
+    border-radius: 16px;
+    border: 1px solid rgb(6 78 59 / 0.12);
+    background: #fff;
+    transition:
+      opacity 500ms ease-out,
+      transform 500ms ease-out,
+      border-color 200ms;
+  }
+  .faq-item + .faq-item {
+    margin-top: 10px;
+  }
+  .faq-item.is-open {
+    border-color: #6ee7b7;
+  }
+  .faq-item h3 {
+    padding: 14px 18px 0;
+  }
+  .faq-item h3:has(button) {
+    padding: 0;
+  }
+  .faq-item h3 button {
+    display: flex;
+    width: 100%;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    border-radius: 16px;
+    padding: 14px 18px;
+    text-align: left;
+  }
+  .faq-item h3 button::after {
+    content: "+";
+    flex-shrink: 0;
+    color: #047857;
+    font-size: 24px;
+    font-weight: 500;
+    line-height: 1;
+    transition: transform 200ms;
+  }
+  .faq-item.is-open h3 button::after {
+    transform: rotate(45deg);
+  }
+  .faq-answer {
+    padding: 4px 18px 16px;
+  }
+
+  .guide footer {
+    margin-top: 56px;
+    border-top: 1px solid rgb(6 78 59 / 0.12);
+    padding-top: 20px;
+    color: #475569;
+    font-size: 14px;
+    text-align: center;
+  }
 }
 
-@keyframes float {
-  0%,
-  100% {
-    transform: translateY(0);
+@keyframes pin-pulse {
+  from {
+    box-shadow: 0 0 0 0 rgb(52 211 153 / 0.8);
   }
-  50% {
-    transform: translateY(-6px);
+  to {
+    box-shadow: 0 0 0 12px rgb(52 211 153 / 0);
+  }
+}
+
+@keyframes pin-pop {
+  from {
+    transform: scale(0);
   }
 }
 
@@ -282,7 +716,8 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .globe-float,
+  .map-pin.is-checked .map-pin-dot,
+  .map-pin-check,
   .fade-in {
     animation: none;
   }

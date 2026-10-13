@@ -9,7 +9,7 @@
       content="Free geo website testing: load any URL in a real Chrome browser in the UK, US, Germany, Australia, Ireland, India or Brazil and get a screenshot and load time from each country in seconds."
     />
     <meta name="robots" content="index, follow" />
-    <meta name="theme-color" content="#f8fafc" />
+    <meta name="theme-color" content="#15803d" />
 
     <meta property="og:type" content="website" />
     <meta property="og:site_name" content="GlobalTest" />
@@ -33,7 +33,57 @@
         "description": "Test how a website looks and loads from different countries using real Chromium browsers running in each region.",
         "applicationCategory": "DeveloperApplication",
         "operatingSystem": "Any",
-        "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" }
+        "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" },
+        "featureList": [
+          "Website screenshots from 7 countries",
+          "Page load time from each country",
+          "Real Chrome browser, not a plain HTTP request",
+          "Side-by-side comparison of countries",
+          "No sign-up"
+        ]
+      }
+    </script>
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "FAQPage",
+        "mainEntity": [
+          {
+            "@type": "Question",
+            "name": "Is GlobalTest free?",
+            "acceptedAnswer": { "@type": "Answer", "text": "Yes. GlobalTest is free to use and you don't need an account." }
+          },
+          {
+            "@type": "Question",
+            "name": "Does it use a real browser?",
+            "acceptedAnswer": { "@type": "Answer", "text": "Yes. Each test starts a real Chrome browser in the country you chose, so JavaScript runs and the page is drawn the way a visitor's browser would draw it. It is not a plain HTTP request." }
+          },
+          {
+            "@type": "Question",
+            "name": "Is this a VPN or a proxy?",
+            "acceptedAnswer": { "@type": "Answer", "text": "No. The browser itself runs on a server inside the country, in an Amazon Web Services data centre, so the website sees a visitor from that country. Some sites treat data centre visitors differently from home broadband visitors." }
+          },
+          {
+            "@type": "Question",
+            "name": "What does the load time measure?",
+            "acceptedAnswer": { "@type": "Answer", "text": "The time from the browser starting to open your address until the page is ready and the screenshot has been taken." }
+          },
+          {
+            "@type": "Question",
+            "name": "How long does a test take?",
+            "acceptedAnswer": { "@type": "Answer", "text": "Usually under a minute. Most of that is the browser starting up in the country you picked. A page that hasn't loaded after 45 seconds is reported as failed." }
+          },
+          {
+            "@type": "Question",
+            "name": "Can I test a mobile view, or a page behind a login?",
+            "acceptedAnswer": { "@type": "Answer", "text": "Not yet. Tests use a desktop window 1280 pixels wide and 720 pixels high and open only public addresses, without signing in." }
+          },
+          {
+            "@type": "Question",
+            "name": "Do you keep my screenshots?",
+            "acceptedAnswer": { "@type": "Answer", "text": "Screenshots are deleted automatically one day after the test." }
+          }
+        ]
       }
     </script>
 
@@ -44,12 +94,137 @@
   <body>
     <div id="root"></div>
     <noscript>
-      <h1>GlobalTest — see your website from any country</h1>
-      <p>
-        GlobalTest opens your URL in a real Chromium browser in the United Kingdom, United States, Germany,
-        Australia, Ireland, India and Brazil, then shows you a screenshot and load time from each country. Enable JavaScript to run a test.
-      </p>
+      <p>Enable JavaScript to run a test.</p>
     </noscript>
+
+    <div class="guide">
+      <section class="guide-intro reveal">
+        <h2>Test your website from another country</h2>
+        <p>
+          GlobalTest is a free geo testing tool. It opens any public web address in a real Chrome browser in the
+          country you choose, then sends back a screenshot of the page and how long it took to load. Pick several
+          countries and you can compare them side by side.
+        </p>
+        <p>
+          Use it to check what visitors abroad really see: the language, the currency, the cookie banner, a
+          redirect to a local version of the site, or a block page.
+        </p>
+      </section>
+
+      <section>
+        <h2>How it works</h2>
+        <ol class="steps">
+          <li class="reveal">
+            <h3>Enter a website address</h3>
+            <p>Any public address, such as example.com.</p>
+          </li>
+          <li class="reveal">
+            <h3>Choose the countries</h3>
+            <p>Pick every country you want to test from.</p>
+          </li>
+          <li class="reveal">
+            <h3>Get a screenshot and a load time</h3>
+            <p>From each country, usually in under a minute. Select a screenshot to see it at full size.</p>
+          </li>
+        </ol>
+        <p class="reveal">
+          Every test starts a new Chrome browser in a data centre inside the country. The browser opens your page
+          in a desktop window 1280 pixels wide and 720 pixels high, waits for the page to be ready and takes the
+          screenshot.
+        </p>
+      </section>
+
+      <section>
+        <h2>Countries you can test from</h2>
+        <ul class="places">
+          <li class="reveal"><strong>United Kingdom</strong><span>London</span></li>
+          <li class="reveal"><strong>United States</strong><span>Northern Virginia</span></li>
+          <li class="reveal"><strong>Germany</strong><span>Frankfurt</span></li>
+          <li class="reveal"><strong>Australia</strong><span>Sydney</span></li>
+          <li class="reveal"><strong>Ireland</strong><span>Dublin</span></li>
+          <li class="reveal"><strong>India</strong><span>Mumbai</span></li>
+          <li class="reveal"><strong>Brazil</strong><span>São Paulo</span></li>
+        </ul>
+      </section>
+
+      <section>
+        <h2>Why check a website from different countries</h2>
+        <ul class="reasons">
+          <li class="reveal">
+            <span class="reason-icon" aria-hidden="true">🧭</span>
+            <h3>Geo-redirects and local versions</h3>
+            <p>See whether visitors in Germany or Brazil land on the right language, currency and prices.</p>
+          </li>
+          <li class="reveal">
+            <span class="reason-icon" aria-hidden="true">🚫</span>
+            <h3>Geo-blocking</h3>
+            <p>Find out whether your site, or one you depend on, is blocked or shows an error in a country.</p>
+          </li>
+          <li class="reveal">
+            <span class="reason-icon" aria-hidden="true">🍪</span>
+            <h3>Cookie and consent banners</h3>
+            <p>Check that the banner shown in the UK and the EU appears where it should, and only there.</p>
+          </li>
+          <li class="reveal">
+            <span class="reason-icon" aria-hidden="true">⚡</span>
+            <h3>Speed around the world</h3>
+            <p>Compare load times between countries to see whether your CDN or hosting is slow far from your servers.</p>
+          </li>
+          <li class="reveal">
+            <span class="reason-icon" aria-hidden="true">🔎</span>
+            <h3>International SEO and ads</h3>
+            <p>Confirm that localised landing pages show what search and ad visitors in each market are meant to see.</p>
+          </li>
+          <li class="reveal">
+            <span class="reason-icon" aria-hidden="true">📡</span>
+            <h3>“Is it down, or is it just me?”</h3>
+            <p>Check whether a site loads from other countries when it doesn't load for you.</p>
+          </li>
+        </ul>
+      </section>
+
+      <section>
+        <h2>Frequently asked questions</h2>
+        <div class="faq">
+          <div class="faq-item reveal">
+            <h3>Is GlobalTest free?</h3>
+            <div class="faq-answer"><p>Yes. GlobalTest is free to use and you don't need an account.</p></div>
+          </div>
+          <div class="faq-item reveal">
+            <h3>Does it use a real browser?</h3>
+            <div class="faq-answer"><p>Yes. Each test starts a real Chrome browser in the country you chose, so JavaScript runs and the page is drawn the way a visitor's browser would draw it. It is not a plain HTTP request.</p></div>
+          </div>
+          <div class="faq-item reveal">
+            <h3>Is this a VPN or a proxy?</h3>
+            <div class="faq-answer"><p>No. The browser itself runs on a server inside the country, in an Amazon Web Services data centre, so the website sees a visitor from that country. Some sites treat data centre visitors differently from home broadband visitors.</p></div>
+          </div>
+          <div class="faq-item reveal">
+            <h3>What does the load time measure?</h3>
+            <div class="faq-answer"><p>The time from the browser starting to open your address until the page is ready and the screenshot has been taken.</p></div>
+          </div>
+          <div class="faq-item reveal">
+            <h3>How long does a test take?</h3>
+            <div class="faq-answer"><p>Usually under a minute. Most of that is the browser starting up in the country you picked. A page that hasn't loaded after 45 seconds is reported as failed.</p></div>
+          </div>
+          <div class="faq-item reveal">
+            <h3>Can I test a mobile view, or a page behind a login?</h3>
+            <div class="faq-answer"><p>Not yet. Tests use a desktop window 1280 pixels wide and 720 pixels high and open only public addresses, without signing in.</p></div>
+          </div>
+          <div class="faq-item reveal">
+            <h3>Do you keep my screenshots?</h3>
+            <div class="faq-answer"><p>Screenshots are deleted automatically one day after the test.</p></div>
+          </div>
+        </div>
+      </section>
+
+      <footer>
+        <p>
+          GlobalTest: website screenshots and load times from the United Kingdom, United States, Germany,
+          Australia, Ireland, India and Brazil. The Facebook, Netflix and Google screenshots above are examples;
+          GlobalTest is not affiliated with those companies.
+        </p>
+      </footer>
+    </div>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

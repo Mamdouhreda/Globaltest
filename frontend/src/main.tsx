@@ -1,5 +1,16 @@
 import React, { useEffect, useId, useRef, useState } from 'react';
 import { createRoot } from 'react-dom/client';
+import { AU, BR, DE, GB, IE, IN, US } from 'country-flag-icons/react/3x2';
+import facebookBrazil from './assets/example-facebook-brazil.png';
+import facebookGermany from './assets/example-facebook-germany.png';
+import facebookUs from './assets/example-facebook-us.png';
+import googleBrazil from './assets/example-google-brazil.png';
+import googleGermany from './assets/example-google-germany.png';
+import googleUs from './assets/example-google-us.png';
+import netflixBrazil from './assets/example-netflix-brazil.jpg';
+import netflixGermany from './assets/example-netflix-germany.jpg';
+import netflixUs from './assets/example-netflix-us.jpg';
+import './guide';
 import './styles.css';
 
 const API_URL = import.meta.env.VITE_API_URL ?? 'http://127.0.0.1:8080';
@@ -27,22 +38,50 @@ type RegionResult =
   | { state: 'ok'; responseTimeMs?: number; screenshot?: string }
   | { state: 'error'; error: string };
 
-type Region = { value: string; label: string; flag: string };
+// Where a country's browsers run, as a pin on the world map. x and y are
+// percentages of the map image, which spans latitudes 80°N to 56°S. lean
+// tilts the pin so that neighbouring cities don't cover each other.
+type Pin = { city: string; x: number; y: number; lean: number };
 
+type Region = { value: string; label: string; flag: React.ReactNode; pin?: Pin };
+
+// Flags are SVGs because Windows has no flag emoji.
 const COUNTRIES: Region[] = [
-  { value: 'uk', label: 'United Kingdom', flag: '🇬🇧' },
-  { value: 'us', label: 'United States', flag: '🇺🇸' },
-  { value: 'germany', label: 'Germany', flag: '🇩🇪' },
-  { value: 'australia', label: 'Australia', flag: '🇦🇺' },
-  { value: 'ireland', label: 'Ireland', flag: '🇮🇪' },
-  { value: 'india', label: 'India', flag: '🇮🇳' },
-  { value: 'brazil', label: 'Brazil', flag: '🇧🇷' },
+  { value: 'uk', label: 'United Kingdom', flag: <GB className="flag" />, pin: { city: 'London', x: 49.97, y: 20.96, lean: 0 } },
+  { value: 'us', label: 'United States', flag: <US className="flag" />, pin: { city: 'Northern Virginia', x: 28.47, y: 30.15, lean: 0 } },
+  { value: 'germany', label: 'Germany', flag: <DE className="flag" />, pin: { city: 'Frankfurt', x: 52.42, y: 21.99, lean: 50 } },
+  { value: 'australia', label: 'Australia', flag: <AU className="flag" />, pin: { city: 'Sydney', x: 92.0, y: 83.75, lean: 0 } },
+  { value: 'ireland', label: 'Ireland', flag: <IE className="flag" />, pin: { city: 'Dublin', x: 48.25, y: 19.63, lean: -50 } },
+  { value: 'india', label: 'India', flag: <IN className="flag" />, pin: { city: 'Mumbai', x: 70.25, y: 44.78, lean: 0 } },
+  { value: 'brazil', label: 'Brazil', flag: <BR className="flag" />, pin: { city: 'São Paulo', x: 37.06, y: 76.18, lean: 0 } },
 ];
 
 const REGIONS: Region[] = [
   // The local option runs Chrome on the dev machine, so only offer it in dev.
   ...(import.meta.env.DEV ? [{ value: '', label: 'Local', flag: '💻' }] : []),
   ...COUNTRIES,
+];
+
+type Shot = { region: Region; screenshot: string; responseTimeMs?: number };
+
+type Example = { name: string; url: string; shots: Shot[] };
+
+// One example per site: the United States, Germany and Brazil, in that order.
+function example(name: string, url: string, screenshots: string[], times: number[]): Example {
+  const regions = [COUNTRIES[1], COUNTRIES[2], COUNTRIES[6]];
+  return {
+    name,
+    url,
+    shots: regions.map((region, index) => ({ region, screenshot: screenshots[index], responseTimeMs: times[index] })),
+  };
+}
+
+// Real results from tests run on 13 October 2026, shown until the visitor
+// runs a test of their own.
+const EXAMPLES: Example[] = [
+  example('Facebook', 'facebook.com', [facebookUs, facebookGermany, facebookBrazil], [995, 1617, 1041]),
+  example('Netflix', 'netflix.com', [netflixUs, netflixGermany, netflixBrazil], [4712, 4654, 4972]),
+  example('Google', 'google.com', [googleUs, googleGermany, googleBrazil], [1528, 1488, 1203]),
 ];
 
 const POLL_INTERVAL_MS = 3000;
@@ -160,26 +199,38 @@ function useElapsed(startedAt: number): number {
   return Math.max(0, now - startedAt);
 }
 
-function Globe() {
+// The logo: a row of overlapping checkpoints like the ones on the map, each a
+// country's flag in a circle on a stem above its city dot
+const LOGO_REGIONS = ['us', 'germany', 'india', 'brazil'];
+
+function Logo() {
+  const regions = LOGO_REGIONS.flatMap((value) => REGIONS.filter((region) => region.value === value));
+  const step = 15;
   return (
-    <div className="globe-float size-20 sm:size-24" aria-hidden>
-      <div className="globe relative size-full overflow-hidden rounded-full">
-        <svg viewBox="0 0 440 440" className="absolute inset-0 size-full">
-          <g fill="#43b865" stroke="#2f9a52" strokeWidth="2" strokeLinejoin="round">
-            {/* Europe */}
-            <path d="M170 70c18-10 40-14 58-8 14 5 20 16 34 14 16-2 30 4 44 14 10 7 26 8 34 18 6 8-2 18-12 20-14 3-28-2-40 6-10 7-8 20-20 24-14 5-26-6-40-4-12 2-20 14-34 12-12-2-14-16-26-20-12-4-26 4-34-6-6-8 4-18 10-26 8-10 14-20 26-28z" />
-            {/* Africa */}
-            <path d="M150 178c20-10 46-8 66-4 22 4 44 2 62 12 16 9 20 28 34 38 14 10 36 12 42 28 5 14-8 26-18 36-12 12-20 28-26 44-8 22-10 46-26 62-12 12-30 14-40 4-10-10-6-28-12-40-8-16-26-24-30-42-4-16 6-32 0-48-6-14-24-18-36-28-14-12-30-24-26-40 2-10 6-18 10-22z" />
-            {/* Middle East */}
-            <path d="M300 180c14-6 30-2 42 6 10 7 20 18 16 30-4 10-16 12-24 18-8 6-10 18-20 20-12 2-18-12-20-24-2-14-4-32 6-50z" />
-            {/* Madagascar */}
-            <path d="M326 330c6-4 12 0 12 8 0 10-4 22-10 26-6 3-10-4-9-12 1-8 2-18 7-22z" />
+    <svg viewBox={`0 0 ${24 + step * (regions.length - 1)} 38`} className="h-10 w-auto shrink-0" aria-hidden>
+      <defs>
+        <clipPath id="logo-head">
+          <circle cx="12" cy="12" r="11" />
+        </clipPath>
+      </defs>
+      {regions.map((region, index) => (
+        <g key={region.value} transform={`translate(${index * step})`}>
+          <path d="M12 22v11" stroke="#fff" strokeWidth="2" />
+          <circle cx="12" cy="34" r="3" fill="#fff" />
+          <g clipPath="url(#logo-head)">
+            {React.cloneElement(region.flag as React.ReactElement<React.SVGProps<SVGSVGElement>>, {
+              x: -2,
+              y: 1,
+              width: 28,
+              height: 22,
+              className: undefined,
+              preserveAspectRatio: 'none',
+            })}
           </g>
-        </svg>
-        <div className="globe-shade absolute inset-0 rounded-full" />
-        <div className="absolute left-[20%] top-[19%] h-[13%] w-[21%] rounded-full bg-white/70 blur-[3px]" />
-      </div>
-    </div>
+          <circle cx="12" cy="12" r="11" fill="none" stroke="#fff" strokeWidth="2" />
+        </g>
+      ))}
+    </svg>
   );
 }
 
@@ -192,20 +243,206 @@ function SearchIcon() {
   );
 }
 
+function ChevronIcon({ open }: { open: boolean }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      className={`size-4 shrink-0 text-slate-600 transition-transform ${open ? 'rotate-180' : ''}`}
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2.5"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden
+    >
+      <path d="m6 9 6 6 6-6" />
+    </svg>
+  );
+}
+
+// A button that opens the list of countries, each with its flag.
+function CountryPicker({
+  selected,
+  onToggle,
+  onSetAll,
+  errorId,
+}: {
+  selected: string[];
+  onToggle: (value: string) => void;
+  onSetAll: (values: string[]) => void;
+  errorId?: string;
+}) {
+  const [open, setOpen] = useState(false);
+  const rootRef = useRef<HTMLDivElement>(null);
+  const buttonRef = useRef<HTMLButtonElement>(null);
+  const panelId = useId();
+
+  useEffect(() => {
+    if (!open) {
+      return;
+    }
+    function onPointerDown(event: PointerEvent) {
+      if (!rootRef.current?.contains(event.target as Node)) {
+        setOpen(false);
+      }
+    }
+    function onKeyDown(event: KeyboardEvent) {
+      if (event.key === 'Escape') {
+        setOpen(false);
+        buttonRef.current?.focus();
+      }
+    }
+    document.addEventListener('pointerdown', onPointerDown);
+    document.addEventListener('keydown', onKeyDown);
+    return () => {
+      document.removeEventListener('pointerdown', onPointerDown);
+      document.removeEventListener('keydown', onKeyDown);
+    };
+  }, [open]);
+
+  const chosen = REGIONS.filter((region) => selected.includes(region.value));
+  const allSelected = chosen.length === REGIONS.length;
+
+  let summary = 'Choose countries';
+  if (chosen.length === 1) {
+    summary = chosen[0].label;
+  } else if (chosen.length > 1) {
+    summary = `${chosen.length} countries`;
+  }
+
+  return (
+    <div ref={rootRef} className="relative">
+      <button
+        ref={buttonRef}
+        type="button"
+        onClick={() => setOpen((current) => !current)}
+        aria-expanded={open}
+        aria-controls={panelId}
+        aria-describedby={errorId}
+        className={`country-button ${open ? 'is-open' : ''}`}
+      >
+        <span className="text-slate-600">Test from</span>
+        {chosen.length > 0 && (
+          <span className="flex items-center gap-1" aria-hidden>
+            {chosen.map((region) => (
+              <React.Fragment key={region.value}>{region.flag}</React.Fragment>
+            ))}
+          </span>
+        )}
+        <span className="font-semibold text-slate-900">{summary}</span>
+        <ChevronIcon open={open} />
+      </button>
+
+      {open && (
+        <div id={panelId} className="country-panel fade-in">
+          <fieldset className="flex flex-col p-1.5">
+            <legend className="sr-only">Countries to test from</legend>
+            {REGIONS.map((region) => {
+              const checked = selected.includes(region.value);
+              return (
+                <label key={region.value} className={`country-option ${checked ? 'is-checked' : ''}`}>
+                  <span aria-hidden>{region.flag}</span>
+                  <span className="min-w-0 flex-1 truncate text-left">{region.label}</span>
+                  <input
+                    type="checkbox"
+                    checked={checked}
+                    onChange={() => onToggle(region.value)}
+                    className="size-4 accent-emerald-700"
+                  />
+                </label>
+              );
+            })}
+          </fieldset>
+          <div className="flex items-center justify-between border-t border-slate-900/10 px-2 py-1.5">
+            <button
+              type="button"
+              onClick={() => onSetAll(allSelected ? [] : REGIONS.map((region) => region.value))}
+              className="text-button rounded-full px-3 py-1.5 text-sm font-semibold"
+            >
+              {allSelected ? 'Clear all' : 'Select all'}
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setOpen(false);
+                buttonRef.current?.focus();
+              }}
+              className="retry-button"
+            >
+              Done
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function CheckIcon() {
+  return (
+    <svg viewBox="0 0 12 12" className="size-2.5" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+      <path d="m2.5 6.5 2.4 2.4 4.6-5.4" />
+    </svg>
+  );
+}
+
+// The world map with a pin where each country's browsers run. A pin is a
+// checkpoint: pressing it adds the country to the test or takes it out.
+function CountryMap({ selected, onToggle }: { selected: string[]; onToggle: (value: string) => void }) {
+  return (
+    <div className="world-map" role="group" aria-label="Countries on the map">
+      <div className="world-map-image" />
+      {REGIONS.map((region) => {
+        if (!region.pin) {
+          return null;
+        }
+        const checked = selected.includes(region.value);
+        const { city, x, y, lean } = region.pin;
+        return (
+          <button
+            key={region.value}
+            type="button"
+            onClick={() => onToggle(region.value)}
+            aria-pressed={checked}
+            aria-label={`${region.label} (${city})`}
+            className={`map-pin ${checked ? 'is-checked' : ''}`}
+            style={{ left: `${x}%`, top: `${y}%`, '--lean': `${lean}deg` } as React.CSSProperties}
+          >
+            <span className="map-pin-dot" />
+            <span className="map-pin-body">
+              <span className="map-pin-head">
+                <span className="map-pin-flag">{region.flag}</span>
+                {checked && (
+                  <span className="map-pin-check">
+                    <CheckIcon />
+                  </span>
+                )}
+                <span className="map-pin-label">
+                  {city}, {region.label}
+                </span>
+              </span>
+            </span>
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
 function App() {
   const [url, setUrl] = useState('');
   const [urlError, setUrlError] = useState('');
   const [selected, setSelected] = useState<string[]>(() => [REGIONS[0].value]);
   const [testedUrl, setTestedUrl] = useState('');
   const [results, setResults] = useState<Record<string, RegionResult>>({});
-  const [zoomed, setZoomed] = useState<string | null>(null);
+  const [zoomed, setZoomed] = useState<Shot | null>(null);
+  const [exampleIndex, setExampleIndex] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
   const resultsRef = useRef<HTMLElement>(null);
   const urlErrorId = useId();
   const countryErrorId = useId();
 
   const isSubmitting = Object.values(results).some((result) => result.state === 'running');
-  const allSelected = selected.length === REGIONS.length;
 
   useEffect(() => {
     function onKeyDown(event: KeyboardEvent) {
@@ -290,21 +527,23 @@ function App() {
     }
   }
 
-  const zoomedRegion = REGIONS.find((region) => region.value === zoomed);
-  const zoomedResult = zoomed !== null ? results[zoomed] : undefined;
+  const shown = EXAMPLES[exampleIndex];
 
   return (
-    <main className="hero-bg relative min-h-screen overflow-hidden px-4 pb-16 pt-[clamp(2rem,12vh,7rem)] text-slate-800">
-      <div className="pointer-events-none absolute inset-0" aria-hidden>
-        <div className="glow glow-yellow" />
+    <main className="relative px-4 pb-12 pt-4 text-slate-800">
+      <div className="pointer-events-none absolute inset-0 overflow-hidden" aria-hidden>
+        <div className="glow glow-green" />
         <div className="glow glow-mint" />
-        <div className="glow glow-peach" />
+        <div className="glow glow-lime" />
       </div>
 
-      <div className="relative mx-auto flex max-w-2xl flex-col items-center text-center">
-        <Globe />
-        <p className="mt-4 text-sm font-semibold uppercase tracking-widest text-emerald-800">GlobalTest</p>
-        <h1 className="mt-2 text-3xl font-bold tracking-tight text-slate-900 sm:text-4xl">
+      <div className="relative mx-auto flex max-w-6xl items-center gap-2.5">
+        <Logo />
+        <p className="text-lg font-bold tracking-tight text-[#0D3233]">GlobalTest</p>
+      </div>
+
+      <div className="relative mx-auto mt-6 flex max-w-2xl flex-col items-center text-center sm:mt-8">
+        <h1 className="text-3xl font-bold tracking-tight text-[#0D3233] sm:text-4xl">
           See your website from any country
         </h1>
         <p className="mt-3 max-w-xl text-base text-slate-700">
@@ -348,43 +587,25 @@ function App() {
             )}
           </div>
 
-          <fieldset
-            className="flex min-w-0 max-w-full flex-wrap justify-center gap-2"
-            aria-describedby={selected.length === 0 ? countryErrorId : undefined}
-          >
-            <legend className="sr-only">Countries to test from</legend>
-            {REGIONS.map((region) => {
-              const checked = selected.includes(region.value);
-              return (
-                <label
-                  key={region.value}
-                  className={`country-chip flex cursor-pointer items-center gap-2 rounded-full py-1.5 pl-2.5 pr-3.5 text-sm font-medium ${checked ? 'is-checked' : ''}`}
-                >
-                  <input
-                    type="checkbox"
-                    checked={checked}
-                    onChange={() => toggleRegion(region.value)}
-                    className="size-4 accent-emerald-700"
-                  />
-                  <span aria-hidden>{region.flag}</span>
-                  {region.label}
-                </label>
-              );
-            })}
-            <button
-              type="button"
-              onClick={() => setSelected(allSelected ? [] : REGIONS.map((region) => region.value))}
-              className="text-button rounded-full px-3 py-1.5 text-sm font-semibold"
-            >
-              {allSelected ? 'Clear all' : 'Select all'}
-            </button>
-          </fieldset>
+          <CountryPicker
+            selected={selected}
+            onToggle={toggleRegion}
+            onSetAll={setSelected}
+            errorId={selected.length === 0 ? countryErrorId : undefined}
+          />
           {selected.length === 0 && (
             <p id={countryErrorId} role="alert" className="text-sm font-medium text-rose-700">
               Pick at least one country.
             </p>
           )}
         </form>
+      </div>
+
+      <div className="relative mx-auto mt-10 w-full max-w-3xl text-center">
+        <CountryMap selected={selected} onToggle={toggleRegion} />
+        <p className="mt-3 text-sm text-slate-700">
+          Every pin is a place where a real browser is waiting. Press a pin to add or remove its country.
+        </p>
       </div>
 
       {resultRegions.length > 0 && (
@@ -404,21 +625,64 @@ function App() {
                 region={region}
                 result={results[region.value]}
                 onRetry={() => runRegion(region.value, testedUrl)}
-                onZoom={() => setZoomed(region.value)}
+                onZoom={(shot) => setZoomed(shot)}
               />
             ))}
           </div>
         </section>
       )}
 
-      {zoomedRegion && zoomedResult?.state === 'ok' && zoomedResult.screenshot && (
-        <ScreenshotDialog
-          region={zoomedRegion}
-          screenshot={zoomedResult.screenshot}
-          responseTimeMs={zoomedResult.responseTimeMs}
-          onClose={() => setZoomed(null)}
-        />
+      {resultRegions.length === 0 && (
+        <section aria-labelledby="example-heading" className="relative mx-auto mt-14 w-full max-w-4xl">
+          <div className="mb-5 flex flex-col items-center gap-2 text-center">
+            <h2 id="example-heading" className="text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl">
+              Here’s{' '}
+              <select
+                value={exampleIndex}
+                onChange={(event) => setExampleIndex(Number(event.target.value))}
+                aria-label="Example website"
+                className="site-select"
+              >
+                {EXAMPLES.map((item, index) => (
+                  <option key={item.url} value={index}>
+                    {item.name}
+                  </option>
+                ))}
+              </select>{' '}
+              from around the world
+            </h2>
+            <p className="text-sm text-slate-700">
+              Real results for {shown.url} from 13 October 2026. Compare the language, the prices and the cookie
+              banner in each country.
+            </p>
+            <button
+              type="button"
+              onClick={() => {
+                setUrl(shown.url);
+                setUrlError('');
+                setSelected(shown.shots.map((shot) => shot.region.value));
+                inputRef.current?.focus();
+              }}
+              className="retry-button"
+            >
+              Try this test
+            </button>
+          </div>
+          <div className="results-grid">
+            {shown.shots.map((shot) => (
+              <ResultCard
+                key={shown.url + shot.region.value}
+                region={shot.region}
+                result={{ state: 'ok', responseTimeMs: shot.responseTimeMs, screenshot: shot.screenshot }}
+                onRetry={() => {}}
+                onZoom={(zoom) => setZoomed(zoom)}
+              />
+            ))}
+          </div>
+        </section>
       )}
+
+      {zoomed && <ScreenshotDialog shot={zoomed} onClose={() => setZoomed(null)} />}
     </main>
   );
 }
@@ -461,8 +725,10 @@ function ResultCard({
   region: Region;
   result: RegionResult;
   onRetry: () => void;
-  onZoom: () => void;
+  onZoom: (shot: Shot) => void;
 }) {
+  const { screenshot, responseTimeMs } = result.state === 'ok' ? result : {};
+
   return (
     <article className="glass-card overflow-hidden rounded-2xl">
       <header className="flex flex-wrap items-center gap-x-2 gap-y-1 px-3 py-2">
@@ -479,14 +745,14 @@ function ResultCard({
       <div className="result-body bg-white/50">
         {result.state === 'running' && <RunningMeter region={region} startedAt={result.startedAt} />}
         {result.state === 'ok' &&
-          (result.screenshot ? (
+          (screenshot ? (
             <button
               type="button"
-              onClick={onZoom}
+              onClick={() => onZoom({ region, screenshot, responseTimeMs })}
               aria-label={`Enlarge screenshot from ${region.label}`}
               className="screenshot-button block size-full"
             >
-              <img src={result.screenshot} alt="" className="fade-in block size-full object-cover object-top" />
+              <img src={screenshot} alt="" className="fade-in block size-full object-cover object-top" />
             </button>
           ) : (
             <div className="flex size-full items-center justify-center px-4 text-center text-xs text-slate-600">
@@ -506,17 +772,8 @@ function ResultCard({
   );
 }
 
-function ScreenshotDialog({
-  region,
-  screenshot,
-  responseTimeMs,
-  onClose,
-}: {
-  region: Region;
-  screenshot: string;
-  responseTimeMs?: number;
-  onClose: () => void;
-}) {
+function ScreenshotDialog({ shot, onClose }: { shot: Shot; onClose: () => void }) {
+  const { region, screenshot, responseTimeMs } = shot;
   const dialogRef = useRef<HTMLDialogElement>(null);
 
   useEffect(() => {
