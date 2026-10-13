@@ -66,13 +66,16 @@ type Shot = { region: Region; screenshot: string; responseTimeMs?: number };
 
 type Example = { name: string; url: string; shots: Shot[] };
 
-// One example per site: the United States, Germany and Brazil, in that order.
+// The countries a first visit starts with, and the ones the examples show:
+// the United States, Germany and Brazil.
+const STARTING_COUNTRIES = [COUNTRIES[1], COUNTRIES[2], COUNTRIES[6]];
+
+// One example per site, with a screenshot and a time for each starting country.
 function example(name: string, url: string, screenshots: string[], times: number[]): Example {
-  const regions = [COUNTRIES[1], COUNTRIES[2], COUNTRIES[6]];
   return {
     name,
     url,
-    shots: regions.map((region, index) => ({ region, screenshot: screenshots[index], responseTimeMs: times[index] })),
+    shots: STARTING_COUNTRIES.map((region, index) => ({ region, screenshot: screenshots[index], responseTimeMs: times[index] })),
   };
 }
 
@@ -243,25 +246,9 @@ function SearchIcon() {
   );
 }
 
-function ChevronIcon({ open }: { open: boolean }) {
-  return (
-    <svg
-      viewBox="0 0 24 24"
-      className={`size-4 shrink-0 text-slate-600 transition-transform ${open ? 'rotate-180' : ''}`}
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2.5"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden
-    >
-      <path d="m6 9 6 6 6-6" />
-    </svg>
-  );
-}
-
-// A button that opens the list of countries, each with its flag.
-function CountryPicker({
+// The countries as a row of chips: pressing one adds its country to the test
+// or takes it out.
+function CountryChips({
   selected,
   onToggle,
   onSetAll,
@@ -272,108 +259,43 @@ function CountryPicker({
   onSetAll: (values: string[]) => void;
   errorId?: string;
 }) {
-  const [open, setOpen] = useState(false);
-  const rootRef = useRef<HTMLDivElement>(null);
-  const buttonRef = useRef<HTMLButtonElement>(null);
-  const panelId = useId();
-
-  useEffect(() => {
-    if (!open) {
-      return;
-    }
-    function onPointerDown(event: PointerEvent) {
-      if (!rootRef.current?.contains(event.target as Node)) {
-        setOpen(false);
-      }
-    }
-    function onKeyDown(event: KeyboardEvent) {
-      if (event.key === 'Escape') {
-        setOpen(false);
-        buttonRef.current?.focus();
-      }
-    }
-    document.addEventListener('pointerdown', onPointerDown);
-    document.addEventListener('keydown', onKeyDown);
-    return () => {
-      document.removeEventListener('pointerdown', onPointerDown);
-      document.removeEventListener('keydown', onKeyDown);
-    };
-  }, [open]);
-
-  const chosen = REGIONS.filter((region) => selected.includes(region.value));
-  const allSelected = chosen.length === REGIONS.length;
-
-  let summary = 'Choose countries';
-  if (chosen.length === 1) {
-    summary = chosen[0].label;
-  } else if (chosen.length > 1) {
-    summary = `${chosen.length} countries`;
-  }
+  const labelId = useId();
+  const allSelected = REGIONS.every((region) => selected.includes(region.value));
 
   return (
-    <div ref={rootRef} className="relative">
-      <button
-        ref={buttonRef}
-        type="button"
-        onClick={() => setOpen((current) => !current)}
-        aria-expanded={open}
-        aria-controls={panelId}
-        aria-describedby={errorId}
-        className={`country-button ${open ? 'is-open' : ''}`}
-      >
-        <span className="text-slate-600">Test from</span>
-        {chosen.length > 0 && (
-          <span className="flex items-center gap-1" aria-hidden>
-            {chosen.map((region) => (
-              <React.Fragment key={region.value}>{region.flag}</React.Fragment>
-            ))}
-          </span>
-        )}
-        <span className="font-semibold text-slate-900">{summary}</span>
-        <ChevronIcon open={open} />
-      </button>
-
-      {open && (
-        <div id={panelId} className="country-panel fade-in">
-          <fieldset className="flex flex-col p-1.5">
-            <legend className="sr-only">Countries to test from</legend>
-            {REGIONS.map((region) => {
-              const checked = selected.includes(region.value);
-              return (
-                <label key={region.value} className={`country-option ${checked ? 'is-checked' : ''}`}>
-                  <span aria-hidden>{region.flag}</span>
-                  <span className="min-w-0 flex-1 truncate text-left">{region.label}</span>
-                  <input
-                    type="checkbox"
-                    checked={checked}
-                    onChange={() => onToggle(region.value)}
-                    className="size-4 accent-emerald-700"
-                  />
-                </label>
-              );
-            })}
-          </fieldset>
-          <div className="flex items-center justify-between border-t border-slate-900/10 px-2 py-1.5">
+    <div role="group" aria-labelledby={labelId} aria-describedby={errorId} className="flex flex-col items-center gap-2.5">
+      <div className="flex items-center gap-1">
+        <p id={labelId} className="text-sm font-semibold text-slate-800">
+          Test from
+        </p>
+        <button
+          type="button"
+          onClick={() => onSetAll(allSelected ? [] : REGIONS.map((region) => region.value))}
+          className="text-button rounded-full px-2.5 py-1 text-sm font-semibold"
+        >
+          {allSelected ? 'Clear all' : 'Select all'}
+        </button>
+      </div>
+      <div className="flex flex-wrap justify-center gap-2">
+        {REGIONS.map((region) => {
+          const checked = selected.includes(region.value);
+          return (
             <button
+              key={region.value}
               type="button"
-              onClick={() => onSetAll(allSelected ? [] : REGIONS.map((region) => region.value))}
-              className="text-button rounded-full px-3 py-1.5 text-sm font-semibold"
+              onClick={() => onToggle(region.value)}
+              aria-pressed={checked}
+              className={`country-chip ${checked ? 'is-checked' : ''}`}
             >
-              {allSelected ? 'Clear all' : 'Select all'}
+              <span aria-hidden>{region.flag}</span>
+              {region.label}
+              <span className="country-chip-mark" aria-hidden>
+                <CheckIcon />
+              </span>
             </button>
-            <button
-              type="button"
-              onClick={() => {
-                setOpen(false);
-                buttonRef.current?.focus();
-              }}
-              className="retry-button"
-            >
-              Done
-            </button>
-          </div>
-        </div>
-      )}
+          );
+        })}
+      </div>
     </div>
   );
 }
@@ -432,7 +354,7 @@ function CountryMap({ selected, onToggle }: { selected: string[]; onToggle: (val
 function App() {
   const [url, setUrl] = useState('');
   const [urlError, setUrlError] = useState('');
-  const [selected, setSelected] = useState<string[]>(() => [REGIONS[0].value]);
+  const [selected, setSelected] = useState<string[]>(() => STARTING_COUNTRIES.map((region) => region.value));
   const [testedUrl, setTestedUrl] = useState('');
   const [results, setResults] = useState<Record<string, RegionResult>>({});
   const [zoomed, setZoomed] = useState<Shot | null>(null);
@@ -480,6 +402,14 @@ function App() {
     }
   }
 
+  async function startTest(target: string, regions: string[]) {
+    setTestedUrl(target);
+    setResults({});
+    requestAnimationFrame(() => resultsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' }));
+
+    await Promise.all(regions.map((region) => runRegion(region, target)));
+  }
+
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (isSubmitting) {
@@ -496,12 +426,10 @@ function App() {
       return;
     }
 
-    const regions = REGIONS.filter((region) => selected.includes(region.value)).map((region) => region.value);
-    setTestedUrl(target);
-    setResults({});
-    requestAnimationFrame(() => resultsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' }));
-
-    await Promise.all(regions.map((region) => runRegion(region, target)));
+    await startTest(
+      target,
+      REGIONS.filter((region) => selected.includes(region.value)).map((region) => region.value),
+    );
   }
 
   const resultRegions = REGIONS.filter((region) => region.value in results);
@@ -587,7 +515,7 @@ function App() {
             )}
           </div>
 
-          <CountryPicker
+          <CountryChips
             selected={selected}
             onToggle={toggleRegion}
             onSetAll={setSelected}
@@ -658,14 +586,15 @@ function App() {
             <button
               type="button"
               onClick={() => {
+                const regions = shown.shots.map((shot) => shot.region.value);
                 setUrl(shown.url);
                 setUrlError('');
-                setSelected(shown.shots.map((shot) => shot.region.value));
-                inputRef.current?.focus();
+                setSelected(regions);
+                startTest(`https://${shown.url}/`, regions);
               }}
               className="retry-button"
             >
-              Try this test
+              Run this test
             </button>
           </div>
           <div className="results-grid">
