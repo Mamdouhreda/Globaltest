@@ -1,15 +1,15 @@
 import React, { useEffect, useId, useRef, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import { AU, BR, DE, GB, IE, IN, US } from 'country-flag-icons/react/3x2';
+import cnnBrazil from './assets/example-cnn-brazil.jpg';
+import cnnGermany from './assets/example-cnn-germany.jpg';
+import cnnUs from './assets/example-cnn-us.jpg';
 import facebookBrazil from './assets/example-facebook-brazil.png';
 import facebookGermany from './assets/example-facebook-germany.png';
 import facebookUs from './assets/example-facebook-us.png';
 import googleBrazil from './assets/example-google-brazil.png';
 import googleGermany from './assets/example-google-germany.png';
 import googleUs from './assets/example-google-us.png';
-import netflixBrazil from './assets/example-netflix-brazil.jpg';
-import netflixGermany from './assets/example-netflix-germany.jpg';
-import netflixUs from './assets/example-netflix-us.jpg';
 import './guide';
 import './styles.css';
 
@@ -64,27 +64,28 @@ const REGIONS: Region[] = [
 
 type Shot = { region: Region; screenshot: string; responseTimeMs?: number };
 
-type Example = { name: string; url: string; shots: Shot[] };
+type Example = { name: string; url: string; date: string; shots: Shot[] };
 
 // The countries a first visit starts with, and the ones the examples show:
 // the United States, Germany and Brazil.
 const STARTING_COUNTRIES = [COUNTRIES[1], COUNTRIES[2], COUNTRIES[6]];
 
 // One example per site, with a screenshot and a time for each starting country.
-function example(name: string, url: string, screenshots: string[], times: number[]): Example {
+function example(name: string, url: string, date: string, screenshots: string[], times: number[]): Example {
   return {
     name,
     url,
+    date,
     shots: STARTING_COUNTRIES.map((region, index) => ({ region, screenshot: screenshots[index], responseTimeMs: times[index] })),
   };
 }
 
-// Real results from tests run on 13 October 2026, shown until the visitor
+// Real results from tests run on the given dates, shown until the visitor
 // runs a test of their own.
 const EXAMPLES: Example[] = [
-  example('Facebook', 'facebook.com', [facebookUs, facebookGermany, facebookBrazil], [995, 1617, 1041]),
-  example('Netflix', 'netflix.com', [netflixUs, netflixGermany, netflixBrazil], [4712, 4654, 4972]),
-  example('Google', 'google.com', [googleUs, googleGermany, googleBrazil], [1528, 1488, 1203]),
+  example('Facebook', 'facebook.com', '13 October 2026', [facebookUs, facebookGermany, facebookBrazil], [995, 1617, 1041]),
+  example('Google', 'google.com', '13 October 2026', [googleUs, googleGermany, googleBrazil], [1528, 1488, 1203]),
+  example('CNN', 'cnn.com', '15 October 2026', [cnnUs, cnnGermany, cnnBrazil], [3158, 4525, 2443]),
 ];
 
 const POLL_INTERVAL_MS = 3000;
@@ -471,7 +472,7 @@ function App() {
       </div>
 
       <div className="relative mx-auto mt-6 flex max-w-2xl flex-col items-center text-center sm:mt-8">
-        <h1 className="text-3xl font-bold tracking-tight text-[#0D3233] sm:text-4xl">
+        <h1 className="text-3xl font-bold tracking-tight text-[#0D3233] sm:whitespace-nowrap sm:text-[42px]">
           See your website from any country
         </h1>
         <p className="mt-3 max-w-xl text-base text-slate-700">
@@ -563,7 +564,7 @@ function App() {
       {resultRegions.length === 0 && (
         <section aria-labelledby="example-heading" className="relative mx-auto mt-14 w-full max-w-4xl">
           <div className="mb-5 flex flex-col items-center gap-2 text-center">
-            <h2 id="example-heading" className="text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl">
+            <h2 id="example-heading" className="text-xl font-bold tracking-tight text-slate-900 sm:text-2xl">
               Here’s{' '}
               <select
                 value={exampleIndex}
@@ -580,7 +581,7 @@ function App() {
               from around the world
             </h2>
             <p className="text-sm text-slate-700">
-              Real results for {shown.url} from 13 October 2026. Compare the language, the prices and the cookie
+              Real results for {shown.url} from {shown.date}. Compare the language, the prices and the cookie
               banner in each country.
             </p>
             <button
