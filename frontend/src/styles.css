@@ -188,16 +188,21 @@
     background: #ecfdf5;
   }
 
-  /* Results: as many compact cards per row as fit */
+  /* Results: one card per row on phones and two beside them, large enough to
+     read the page. With an odd number, the first spans the row so none is
+     left alone at the end. */
   .results-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+    grid-template-columns: minmax(0, 1fr);
     gap: 12px;
   }
   @media (min-width: 640px) {
     .results-grid {
-      grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+      grid-template-columns: repeat(2, minmax(0, 1fr));
       gap: 16px;
+    }
+    .results-grid > :first-child:nth-last-child(odd) {
+      grid-column: 1 / -1;
     }
   }
   .glass-card {
@@ -241,6 +246,61 @@
   }
   .retry-button:hover {
     background: #f1f5f9;
+  }
+  /* Previous / next country in the enlarged view */
+  .icon-button {
+    display: flex;
+    width: 28px;
+    height: 28px;
+    align-items: center;
+    justify-content: center;
+    border-radius: 9999px;
+    border: 1px solid rgb(15 23 42 / 0.25);
+    background: #fff;
+    color: #0f172a;
+    transition: background-color 150ms;
+  }
+  .icon-button:hover {
+    background: #f1f5f9;
+  }
+
+  /* Marks a result card that has a scroll video */
+  .play-badge {
+    position: absolute;
+    inset: 0;
+    margin: auto;
+    display: flex;
+    width: 40px;
+    height: 40px;
+    align-items: center;
+    justify-content: center;
+    border-radius: 9999px;
+    background: rgb(15 23 42 / 0.65);
+    color: #fff;
+    padding-left: 2px;
+  }
+
+  /* Screenshot / scroll video switch in the enlarged view */
+  .view-toggle {
+    display: inline-flex;
+    align-self: flex-start;
+    gap: 2px;
+    padding: 2px;
+    border-radius: 9999px;
+    background: rgb(15 23 42 / 0.08);
+  }
+  .view-toggle button {
+    border-radius: 9999px;
+    padding: 4px 12px;
+    font-size: 12px;
+    font-weight: 600;
+    color: #334155;
+    transition: background-color 150ms;
+  }
+  .view-toggle button[aria-pressed='true'] {
+    background: #fff;
+    color: #064e3b;
+    box-shadow: 0 1px 2px rgb(15 23 42 / 0.15);
   }
 
   /* Estimated progress of a running test */
@@ -295,7 +355,22 @@
     background-color: #a7f3d0;
   }
 
-  /* World map with a checkpoint pin on every country */
+  /* The map as the hero's backdrop: faded towards its edges so the text over
+     it stays readable, with a dot on each country and the chosen ones lit */
+  .hero-map {
+    position: absolute;
+    top: 72px;
+    left: 50%;
+    width: min(1280px, 100%);
+    transform: translateX(-50%);
+    pointer-events: none;
+  }
+  /* On a phone the map is too small to read and its dots land on the headline */
+  @media (max-width: 639px) {
+    .hero-map {
+      display: none;
+    }
+  }
   .world-map {
     position: relative;
     aspect-ratio: 1600 / 604;
@@ -303,131 +378,25 @@
   .world-map-image {
     position: absolute;
     inset: 0;
-    border-radius: 20px;
     background: #0b2a4a url("./assets/world-map.jpg") center / cover;
-    filter: brightness(1.3) saturate(1.2);
-    box-shadow: 0 16px 40px rgb(6 78 59 / 0.25);
+    opacity: 0.2;
+    filter: saturate(0.7) brightness(1.6);
+    mask-image: radial-gradient(ellipse at center, #000 35%, transparent 72%);
   }
-  /* The button is a zero-size point on the city; the pin grows up from it */
-  .map-pin {
+  .map-dot {
     position: absolute;
-    width: 0;
-    height: 0;
-  }
-  .map-pin:focus-visible {
-    outline: none;
-  }
-  .map-pin-dot {
-    position: absolute;
-    left: -4px;
-    top: -4px;
-    width: 8px;
-    height: 8px;
+    width: 10px;
+    height: 10px;
+    margin: -5px 0 0 -5px;
     border-radius: 9999px;
     background: #fff;
     box-shadow: 0 0 0 2px rgb(15 23 42 / 0.5);
+    opacity: 0.4;
   }
-  .map-pin.is-checked .map-pin-dot {
+  .map-dot.is-checked {
     background: #34d399;
-    animation: pin-pulse 2s ease-out infinite;
-  }
-  /* A stem from the city up to the flag, tilted by --lean */
-  .map-pin-body {
-    position: absolute;
-    left: -1px;
-    bottom: 0;
-    width: 2px;
-    height: 20px;
-    background: #fff;
-    transform: rotate(var(--lean));
-    transform-origin: bottom center;
-  }
-  .map-pin-head {
-    position: absolute;
-    left: -14px;
-    bottom: 100%;
-    width: 30px;
-    height: 30px;
-    border-radius: 9999px;
-    border: 2px solid #fff;
-    background: #fff;
-    box-shadow: 0 4px 10px rgb(2 12 32 / 0.5);
-    transform: rotate(calc(-1 * var(--lean)));
-    transition:
-      transform 150ms,
-      border-color 150ms;
-  }
-  .map-pin:hover .map-pin-head,
-  .map-pin:focus-visible .map-pin-head {
-    transform: rotate(calc(-1 * var(--lean))) scale(1.15);
-  }
-  .map-pin:focus-visible .map-pin-head {
-    outline: 2px solid #fff;
-    outline-offset: 2px;
-  }
-  .map-pin.is-checked .map-pin-head {
-    border-color: #34d399;
-  }
-  /* The flag, cropped to a circle; grey until its country is chosen */
-  .map-pin-flag {
-    display: block;
-    width: 100%;
-    height: 100%;
-    overflow: hidden;
-    border-radius: 9999px;
-    filter: grayscale(1) opacity(0.75);
-    transition: filter 150ms;
-  }
-  .map-pin.is-checked .map-pin-flag {
-    filter: none;
-  }
-  .map-pin-flag .flag {
-    width: 39px;
-    max-width: none;
-    height: 26px;
-    margin-left: -6.5px;
-    border-radius: 0;
-    box-shadow: none;
-  }
-  .map-pin-check {
-    position: absolute;
-    right: -7px;
-    top: -7px;
-    display: flex;
-    width: 16px;
-    height: 16px;
-    align-items: center;
-    justify-content: center;
-    border-radius: 9999px;
-    border: 1.5px solid #fff;
-    background: #047857;
-    color: #fff;
-    animation: pin-pop 200ms ease-out;
-  }
-  .map-pin-label {
-    position: absolute;
-    left: 50%;
-    bottom: calc(100% + 8px);
-    z-index: 1;
-    transform: translateX(-50%);
-    border-radius: 8px;
-    background: #0f172a;
-    padding: 3px 8px;
-    color: #fff;
-    font-size: 12px;
-    font-weight: 600;
-    white-space: nowrap;
-    opacity: 0;
-    pointer-events: none;
-    transition: opacity 150ms;
-  }
-  .map-pin:hover,
-  .map-pin:focus-visible {
-    z-index: 1;
-  }
-  .map-pin:hover .map-pin-label,
-  .map-pin:focus-visible .map-pin-label {
     opacity: 1;
+    animation: pin-pulse 2s ease-out infinite;
   }
 
   /* Written guide below the tool; its markup is in index.html and guide.ts
@@ -677,12 +646,6 @@
   }
 }
 
-@keyframes pin-pop {
-  from {
-    transform: scale(0);
-  }
-}
-
 @keyframes spin {
   to {
     transform: rotate(360deg);
@@ -696,8 +659,7 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .map-pin.is-checked .map-pin-dot,
-  .map-pin-check,
+  .map-dot.is-checked,
   .fade-in {
     animation: none;
   }

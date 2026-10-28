@@ -20,6 +20,7 @@ type UrlResponse = {
   url: string;
   responseTimeMs?: number;
   screenshot?: string;
+  video?: string;
   // Set instead of screenshot when a region is selected: the test runs as a
   // Fargate task, which doesn't return a screenshot synchronously yet.
   taskArn?: string;
@@ -31,29 +32,32 @@ type ResultResponse = {
   responseTimeMs?: number;
   error?: string;
   screenshot?: string;
+  // A link to a video of the page scrolling top to bottom.
+  video?: string;
 };
 
 type RegionResult =
   | { state: 'running'; startedAt: number }
-  | { state: 'ok'; responseTimeMs?: number; screenshot?: string }
+  | { state: 'ok'; responseTimeMs?: number; screenshot?: string; video?: string }
   | { state: 'error'; error: string };
 
-// Where a country's browsers run, as a pin on the world map. x and y are
-// percentages of the map image, which spans latitudes 80°N to 56°S. lean
-// tilts the pin so that neighbouring cities don't cover each other.
-type Pin = { city: string; x: number; y: number; lean: number };
+// Where a country's browsers run, as a dot on the world map. x and y are
+// percentages of the map image, which spans latitudes 80°N to 56°S.
+type Pin = { x: number; y: number };
 
 type Region = { value: string; label: string; flag: React.ReactNode; pin?: Pin };
 
 // Flags are SVGs because Windows has no flag emoji.
 const COUNTRIES: Region[] = [
-  { value: 'uk', label: 'United Kingdom', flag: <GB className="flag" />, pin: { city: 'London', x: 49.97, y: 20.96, lean: 0 } },
-  { value: 'us', label: 'United States', flag: <US className="flag" />, pin: { city: 'Northern Virginia', x: 28.47, y: 30.15, lean: 0 } },
-  { value: 'germany', label: 'Germany', flag: <DE className="flag" />, pin: { city: 'Frankfurt', x: 52.42, y: 21.99, lean: 50 } },
-  { value: 'australia', label: 'Australia', flag: <AU className="flag" />, pin: { city: 'Sydney', x: 92.0, y: 83.75, lean: 0 } },
-  { value: 'ireland', label: 'Ireland', flag: <IE className="flag" />, pin: { city: 'Dublin', x: 48.25, y: 19.63, lean: -50 } },
-  { value: 'india', label: 'India', flag: <IN className="flag" />, pin: { city: 'Mumbai', x: 70.25, y: 44.78, lean: 0 } },
-  { value: 'brazil', label: 'Brazil', flag: <BR className="flag" />, pin: { city: 'São Paulo', x: 37.06, y: 76.18, lean: 0 } },
+  // Pins sit on the cities the browsers run in: London, Northern Virginia,
+  // Frankfurt, Sydney, Dublin, Mumbai and São Paulo.
+  { value: 'uk', label: 'United Kingdom', flag: <GB className="flag" />, pin: { x: 49.97, y: 20.96 } },
+  { value: 'us', label: 'United States', flag: <US className="flag" />, pin: { x: 28.47, y: 30.15 } },
+  { value: 'germany', label: 'Germany', flag: <DE className="flag" />, pin: { x: 52.42, y: 21.99 } },
+  { value: 'australia', label: 'Australia', flag: <AU className="flag" />, pin: { x: 92.0, y: 83.75 } },
+  { value: 'ireland', label: 'Ireland', flag: <IE className="flag" />, pin: { x: 48.25, y: 19.63 } },
+  { value: 'india', label: 'India', flag: <IN className="flag" />, pin: { x: 70.25, y: 44.78 } },
+  { value: 'brazil', label: 'Brazil', flag: <BR className="flag" />, pin: { x: 37.06, y: 76.18 } },
 ];
 
 const REGIONS: Region[] = [
@@ -62,7 +66,7 @@ const REGIONS: Region[] = [
   ...COUNTRIES,
 ];
 
-type Shot = { region: Region; screenshot: string; responseTimeMs?: number };
+type Shot = { region: Region; screenshot: string; responseTimeMs?: number; video?: string };
 
 type Example = { name: string; url: string; date: string; shots: Shot[] };
 
@@ -142,15 +146,16 @@ function describeSiteError(error: string | undefined): string {
   return "The site couldn't be loaded from here.";
 }
 
-// Runs one test in one region. Regional tests start a Fargate task and are
-// polled; the local test returns its screenshot directly.
+// Runs one test in one region, with a screenshot and a scroll video. Regional
+// tests start a Fargate task and are polled; the local test returns its
+// results directly.
 async function runTest(url: string, region: string): Promise<RegionResult> {
   const response = await request(`${API_URL}/url`, "Couldn't start a browser here. Try again in a moment.", {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
     },
-    body: JSON.stringify({ url, region }),
+    body: JSON.stringify({ url, region, video: true }),
   });
 
   const data = (await response.json()) as UrlResponse;
@@ -158,11 +163,11 @@ async function runTest(url: string, region: string): Promise<RegionResult> {
   if (data.status === 'started' && data.testId) {
     const result = await pollResult(data.testId);
     if (result.status === 'ok') {
-      return { state: 'ok', responseTimeMs: result.responseTimeMs, screenshot: result.screenshot };
+      return { state: 'ok', responseTimeMs: result.responseTimeMs, screenshot: result.screenshot, video: result.video };
     }
     return { state: 'error', error: describeSiteError(result.error) };
   }
-  return { state: 'ok', responseTimeMs: data.responseTimeMs, screenshot: data.screenshot };
+  return { state: 'ok', responseTimeMs: data.responseTimeMs, screenshot: data.screenshot, video: data.video };
 }
 
 // Returns the address as a full URL, or null if it isn't a usable website
@@ -309,45 +314,23 @@ function CheckIcon() {
   );
 }
 
-// The world map with a pin where each country's browsers run. A pin is a
-// checkpoint: pressing it adds the country to the test or takes it out.
-function CountryMap({ selected, onToggle }: { selected: string[]; onToggle: (value: string) => void }) {
+// The world map behind the hero, with a dot where each country's browsers
+// run. A chosen country's dot is lit. It is only a picture: countries are
+// picked with the chips.
+function CountryMap({ selected }: { selected: string[] }) {
   return (
-    <div className="world-map" role="group" aria-label="Countries on the map">
+    <div className="world-map">
       <div className="world-map-image" />
-      {REGIONS.map((region) => {
-        if (!region.pin) {
-          return null;
-        }
-        const checked = selected.includes(region.value);
-        const { city, x, y, lean } = region.pin;
-        return (
-          <button
-            key={region.value}
-            type="button"
-            onClick={() => onToggle(region.value)}
-            aria-pressed={checked}
-            aria-label={`${region.label} (${city})`}
-            className={`map-pin ${checked ? 'is-checked' : ''}`}
-            style={{ left: `${x}%`, top: `${y}%`, '--lean': `${lean}deg` } as React.CSSProperties}
-          >
-            <span className="map-pin-dot" />
-            <span className="map-pin-body">
-              <span className="map-pin-head">
-                <span className="map-pin-flag">{region.flag}</span>
-                {checked && (
-                  <span className="map-pin-check">
-                    <CheckIcon />
-                  </span>
-                )}
-                <span className="map-pin-label">
-                  {city}, {region.label}
-                </span>
-              </span>
-            </span>
-          </button>
-        );
-      })}
+      {REGIONS.map(
+        (region) =>
+          region.pin && (
+            <span
+              key={region.value}
+              className={`map-dot ${selected.includes(region.value) ? 'is-checked' : ''}`}
+              style={{ left: `${region.pin.x}%`, top: `${region.pin.y}%` }}
+            />
+          ),
+      )}
     </div>
   );
 }
@@ -358,7 +341,9 @@ function App() {
   const [selected, setSelected] = useState<string[]>(() => STARTING_COUNTRIES.map((region) => region.value));
   const [testedUrl, setTestedUrl] = useState('');
   const [results, setResults] = useState<Record<string, RegionResult>>({});
-  const [zoomed, setZoomed] = useState<Shot | null>(null);
+  // The enlarged view holds every shot of the test, so it can flip between
+  // countries in place.
+  const [zoomed, setZoomed] = useState<{ shots: Shot[]; index: number } | null>(null);
   const [exampleIndex, setExampleIndex] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
   const resultsRef = useRef<HTMLElement>(null);
@@ -452,8 +437,26 @@ function App() {
     } else if (fastest && loaded > 1) {
       summary = `Fastest from ${fastest.region.label}: ${formatTime(fastest.ms)}`;
     } else {
-      summary = 'Select a screenshot to enlarge it';
+      // A video can be missing even though one was asked for: recording is
+      // skipped if it fails, and the screenshot still comes back.
+      const hasVideo = resultRegions.some((region) => {
+        const result = results[region.value];
+        return result.state === 'ok' && result.video;
+      });
+      summary = hasVideo ? 'Select a result to watch its video' : 'Select a screenshot to enlarge it';
     }
+  }
+
+  const resultShots: Shot[] = [];
+  for (const region of resultRegions) {
+    const result = results[region.value];
+    if (result.state === 'ok' && result.screenshot) {
+      resultShots.push({ region, screenshot: result.screenshot, responseTimeMs: result.responseTimeMs, video: result.video });
+    }
+  }
+
+  function zoom(shots: Shot[], shot: Shot) {
+    setZoomed({ shots, index: Math.max(0, shots.findIndex((item) => item.region.value === shot.region.value)) });
   }
 
   const shown = EXAMPLES[exampleIndex];
@@ -466,21 +469,27 @@ function App() {
         <div className="glow glow-lime" />
       </div>
 
+      {/* A faded map behind the hero, with a lit dot for each chosen country.
+          Countries are picked with the chips, so the map is only a picture. */}
+      <div className="hero-map" aria-hidden>
+        <CountryMap selected={selected} />
+      </div>
+
       <div className="relative mx-auto flex max-w-6xl items-center gap-2.5">
         <Logo />
         <p className="text-lg font-bold tracking-tight text-[#0D3233]">GlobalTest</p>
       </div>
 
-      <div className="relative mx-auto mt-6 flex max-w-2xl flex-col items-center text-center sm:mt-8">
-        <h1 className="text-3xl font-bold tracking-tight text-[#0D3233] sm:whitespace-nowrap sm:text-[42px]">
-          See your website from any country
+      <div className="relative mx-auto mt-6 flex max-w-4xl flex-col items-center text-center sm:mt-8">
+        <h1 className="text-balance text-3xl font-bold tracking-tight text-[#0D3233] sm:text-[36px] lg:whitespace-nowrap lg:text-[40px]">
+          See how your site looks and loads in any country
         </h1>
-        <p className="mt-3 max-w-xl text-base text-slate-700">
-          A real Chrome browser opens your site in each country you pick and sends back a screenshot and the load
-          time.
+        <p className="mt-3 max-w-3xl text-base text-slate-700 sm:text-lg">
+          Real Chrome browsers open your site in the countries you pick. You get a screenshot, the load time and a
+          video of the whole page from each one.
         </p>
 
-        <form onSubmit={handleSubmit} noValidate className="mt-8 flex w-full flex-col items-center gap-4">
+        <form onSubmit={handleSubmit} noValidate className="mt-8 flex w-full max-w-3xl flex-col items-center gap-4">
           <div className="w-full">
             <label className={`glass-field flex h-14 items-center gap-3 rounded-2xl pl-4 pr-2 sm:h-16 ${urlError ? 'is-invalid' : ''}`}>
               <SearchIcon />
@@ -506,7 +515,19 @@ function App() {
               />
               <button type="submit" disabled={isSubmitting} className="primary-button">
                 {isSubmitting && <span className="spinner" aria-hidden />}
-                {isSubmitting ? 'Testing…' : 'Test'}
+                {isSubmitting ? (
+                  'Testing…'
+                ) : (
+                  <span>
+                    Test
+                    {/* The count only fits beside the address on wider screens. */}
+                    {selected.length > 0 && (
+                      <span className="hidden sm:inline">
+                        {` ${selected.length} ${selected.length === 1 ? 'country' : 'countries'}`}
+                      </span>
+                    )}
+                  </span>
+                )}
               </button>
             </label>
             {urlError && (
@@ -530,13 +551,6 @@ function App() {
         </form>
       </div>
 
-      <div className="relative mx-auto mt-10 w-full max-w-3xl text-center">
-        <CountryMap selected={selected} onToggle={toggleRegion} />
-        <p className="mt-3 text-sm text-slate-700">
-          Every pin is a place where a real browser is waiting. Press a pin to add or remove its country.
-        </p>
-      </div>
-
       {resultRegions.length > 0 && (
         <section ref={resultsRef} aria-labelledby="results-heading" className="relative mx-auto mt-10 w-full max-w-6xl scroll-mt-6">
           <div className="mb-4 flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
@@ -547,6 +561,11 @@ function App() {
               {summary}
             </p>
           </div>
+          {/* Each test waits for a browser to start, so it takes longer than the time it reports. */}
+          <p className="-mt-2 mb-4 text-xs text-slate-600">
+            Times are how long the page took to load in each country. The test takes longer because a browser has to
+            start there first.
+          </p>
           <div className="results-grid">
             {resultRegions.map((region) => (
               <ResultCard
@@ -554,7 +573,7 @@ function App() {
                 region={region}
                 result={results[region.value]}
                 onRetry={() => runRegion(region.value, testedUrl)}
-                onZoom={(shot) => setZoomed(shot)}
+                onZoom={(shot) => zoom(resultShots, shot)}
               />
             ))}
           </div>
@@ -582,7 +601,7 @@ function App() {
             </h2>
             <p className="text-sm text-slate-700">
               Real results for {shown.url} from {shown.date}. Compare the language, the prices and the cookie
-              banner in each country.
+              banner in each country. Open one, then flip between countries with the arrows.
             </p>
             <button
               type="button"
@@ -605,14 +624,14 @@ function App() {
                 region={shot.region}
                 result={{ state: 'ok', responseTimeMs: shot.responseTimeMs, screenshot: shot.screenshot }}
                 onRetry={() => {}}
-                onZoom={(zoom) => setZoomed(zoom)}
+                onZoom={(shot) => zoom(shown.shots, shot)}
               />
             ))}
           </div>
         </section>
       )}
 
-      {zoomed && <ScreenshotDialog shot={zoomed} onClose={() => setZoomed(null)} />}
+      {zoomed && <ScreenshotDialog shots={zoomed.shots} start={zoomed.index} onClose={() => setZoomed(null)} />}
     </main>
   );
 }
@@ -657,7 +676,7 @@ function ResultCard({
   onRetry: () => void;
   onZoom: (shot: Shot) => void;
 }) {
-  const { screenshot, responseTimeMs } = result.state === 'ok' ? result : {};
+  const { screenshot, responseTimeMs, video } = result.state === 'ok' ? result : {};
 
   return (
     <article className="glass-card overflow-hidden rounded-2xl">
@@ -678,11 +697,16 @@ function ResultCard({
           (screenshot ? (
             <button
               type="button"
-              onClick={() => onZoom({ region, screenshot, responseTimeMs })}
-              aria-label={`Enlarge screenshot from ${region.label}`}
-              className="screenshot-button block size-full"
+              onClick={() => onZoom({ region, screenshot, responseTimeMs, video })}
+              aria-label={video ? `Watch the scroll video from ${region.label}` : `Enlarge screenshot from ${region.label}`}
+              className="screenshot-button relative block size-full"
             >
               <img src={screenshot} alt="" className="fade-in block size-full object-cover object-top" />
+              {video && (
+                <span className="play-badge" aria-hidden>
+                  <PlayIcon />
+                </span>
+              )}
             </button>
           ) : (
             <div className="flex size-full items-center justify-center px-4 text-center text-xs text-slate-600">
@@ -702,9 +726,31 @@ function ResultCard({
   );
 }
 
-function ScreenshotDialog({ shot, onClose }: { shot: Shot; onClose: () => void }) {
-  const { region, screenshot, responseTimeMs } = shot;
+function PlayIcon() {
+  return (
+    <svg viewBox="0 0 16 16" className="size-4" fill="currentColor" aria-hidden>
+      <path d="M5 3.2v9.6a.6.6 0 0 0 .9.5l7.6-4.8a.6.6 0 0 0 0-1L5.9 2.7a.6.6 0 0 0-.9.5Z" />
+    </svg>
+  );
+}
+
+function ChevronIcon({ flip }: { flip?: boolean }) {
+  return (
+    <svg viewBox="0 0 16 16" className={`size-4 ${flip ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+      <path d="m10 3-5 5 5 5" />
+    </svg>
+  );
+}
+
+// The enlarged view of one shot. With several, the arrows (or the arrow keys)
+// flip between countries in place, which is the easiest way to spot what
+// differs between them.
+function ScreenshotDialog({ shots, start, onClose }: { shots: Shot[]; start: number; onClose: () => void }) {
+  const [index, setIndex] = useState(start);
+  const { region, screenshot, responseTimeMs, video } = shots[index];
   const dialogRef = useRef<HTMLDialogElement>(null);
+  // A result with a video opens on the video: the visitor asked for it.
+  const [showVideo, setShowVideo] = useState(Boolean(shots[start].video));
 
   useEffect(() => {
     const dialog = dialogRef.current;
@@ -712,6 +758,10 @@ function ScreenshotDialog({ shot, onClose }: { shot: Shot; onClose: () => void }
       dialog.showModal();
     }
   }, []);
+
+  function step(by: number) {
+    setIndex((current) => (current + by + shots.length) % shots.length);
+  }
 
   return (
     <dialog
@@ -721,6 +771,16 @@ function ScreenshotDialog({ shot, onClose }: { shot: Shot; onClose: () => void }
       onClick={(event) => {
         if (event.target === dialogRef.current) {
           dialogRef.current.close();
+        }
+      }}
+      // The video's own controls use the arrow keys to seek.
+      onKeyDown={(event) => {
+        if (shots.length > 1 && !(event.target instanceof HTMLVideoElement)) {
+          if (event.key === 'ArrowLeft') {
+            step(-1);
+          } else if (event.key === 'ArrowRight') {
+            step(1);
+          }
         }
       }}
       aria-label={`Screenshot from ${region.label}`}
@@ -733,12 +793,55 @@ function ScreenshotDialog({ shot, onClose }: { shot: Shot; onClose: () => void }
           {responseTimeMs !== undefined && (
             <span className="status bg-emerald-100 text-emerald-900">{formatTime(responseTimeMs)}</span>
           )}
+          {shots.length > 1 && (
+            <div className="flex items-center gap-2">
+              <button type="button" onClick={() => step(-1)} aria-label="Previous country" className="icon-button">
+                <ChevronIcon />
+              </button>
+              <span className="text-xs tabular-nums text-slate-600">
+                {index + 1} of {shots.length}
+              </span>
+              <button type="button" onClick={() => step(1)} aria-label="Next country" className="icon-button">
+                <ChevronIcon flip />
+              </button>
+            </div>
+          )}
           <button type="button" onClick={() => dialogRef.current?.close()} className="retry-button">
             Close
           </button>
         </header>
+        {video && (
+          <div className="view-toggle mx-4 mb-3" role="group" aria-label="View">
+            <button type="button" aria-pressed={!showVideo} onClick={() => setShowVideo(false)}>
+              Screenshot
+            </button>
+            <button type="button" aria-pressed={showVideo} onClick={() => setShowVideo(true)}>
+              Scroll video
+            </button>
+          </div>
+        )}
         <div className="min-h-0 overflow-auto">
-          <img src={screenshot} alt={`Screenshot from ${region.label}`} className="block w-full" />
+          {video && showVideo ? (
+            // Only rendered once the video view is open, so nothing downloads
+            // until someone asks to watch. The autoPlay attribute doesn't
+            // reliably start a React-rendered video, so start it here.
+            <video
+              ref={(element) => {
+                if (element) {
+                  element.muted = true;
+                  element.play().catch(() => {});
+                }
+              }}
+              src={video}
+              poster={screenshot}
+              controls
+              playsInline
+              aria-label={`Video of the page scrolling, from ${region.label}`}
+              className="block w-full"
+            />
+          ) : (
+            <img src={screenshot} alt={`Screenshot from ${region.label}`} className="block w-full" />
+          )}
         </div>
       </div>
     </dialog>
