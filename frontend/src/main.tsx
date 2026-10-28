@@ -103,7 +103,7 @@ function example(
 // Brazil result shows off the scroll video; Facebook and Google fit on one
 // screen.
 const EXAMPLES: Example[] = [
-  example('CNN', 'cnn.com', '28 October 2026', [cnnUs, cnnGermany, cnnBrazil], [3943, 5444, 3079], [undefined, undefined, cnnBrazilVideo]),
+  example('CNN', 'cnn.com', '28 October 2026', [cnnUs, cnnGermany, cnnBrazil], [3943, 5444, 2252], [undefined, undefined, cnnBrazilVideo]),
   example('Facebook', 'facebook.com', '13 October 2026', [facebookUs, facebookGermany, facebookBrazil], [995, 1617, 1041]),
   example('Google', 'google.com', '13 October 2026', [googleUs, googleGermany, googleBrazil], [1528, 1488, 1203]),
 ];

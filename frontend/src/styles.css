@@ -194,20 +194,23 @@
   }
 
   /* Results: one card per row on phones and two beside them, large enough to
-     read the page. With an odd number, the first spans the row so none is
-     left alone at the end. */
+     read the page. Every card is the same size; with an odd number, the
+     last one sits centred under the others. */
   .results-grid {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr);
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
     gap: 12px;
+  }
+  .results-grid > * {
+    width: 100%;
   }
   @media (min-width: 640px) {
     .results-grid {
-      grid-template-columns: repeat(2, minmax(0, 1fr));
       gap: 16px;
     }
-    .results-grid > :first-child:nth-last-child(odd) {
-      grid-column: 1 / -1;
+    .results-grid > * {
+      width: calc((100% - 16px) / 2);
     }
   }
   .glass-card {
