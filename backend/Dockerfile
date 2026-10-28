@@ -4,7 +4,7 @@ FROM golang:1.26-bookworm AS builder
 WORKDIR /src
 COPY go.mod go.sum ./
 RUN go mod download
-COPY main.go fargate.go ./
+COPY *.go ./
 # Built natively as arm64 (this Mac's Docker platform, same as browser-tester)
 # rather than cross-compiled — Lambda supports arm64 directly, it's ~20%
 # cheaper per invocation, and it skips needing buildx. The binary name
