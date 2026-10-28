@@ -156,6 +156,11 @@
     background: #fff;
     border-color: rgb(15 23 42 / 0.25);
   }
+  /* The video choice is a checkbox dressed as a chip */
+  .country-chip:has(input:focus-visible) {
+    outline: 2px solid #047857;
+    outline-offset: 2px;
+  }
   .country-chip.is-checked {
     background: #ecfdf5;
     border-color: #047857;
@@ -265,19 +270,19 @@
   }
 
   /* Marks a result card that has a scroll video */
-  .play-badge {
+  .video-tag {
     position: absolute;
-    inset: 0;
-    margin: auto;
+    left: 8px;
+    bottom: 8px;
     display: flex;
-    width: 40px;
-    height: 40px;
     align-items: center;
-    justify-content: center;
+    gap: 4px;
     border-radius: 9999px;
-    background: rgb(15 23 42 / 0.65);
+    background: rgb(15 23 42 / 0.75);
+    padding: 3px 10px 3px 8px;
     color: #fff;
-    padding-left: 2px;
+    font-size: 12px;
+    font-weight: 600;
   }
 
   /* Screenshot / scroll video switch in the enlarged view */

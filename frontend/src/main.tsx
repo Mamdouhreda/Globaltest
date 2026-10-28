@@ -2,6 +2,7 @@ import React, { useEffect, useId, useRef, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import { AU, BR, DE, GB, IE, IN, US } from 'country-flag-icons/react/3x2';
 import cnnBrazil from './assets/example-cnn-brazil.jpg';
+import cnnBrazilVideo from './assets/example-cnn-brazil.mp4';
 import cnnGermany from './assets/example-cnn-germany.jpg';
 import cnnUs from './assets/example-cnn-us.jpg';
 import facebookBrazil from './assets/example-facebook-brazil.png';
@@ -74,22 +75,37 @@ type Example = { name: string; url: string; date: string; shots: Shot[] };
 // the United States, Germany and Brazil.
 const STARTING_COUNTRIES = [COUNTRIES[1], COUNTRIES[2], COUNTRIES[6]];
 
-// One example per site, with a screenshot and a time for each starting country.
-function example(name: string, url: string, date: string, screenshots: string[], times: number[]): Example {
+// One example per site, with a screenshot and a time for each starting
+// country, and a scroll video for some.
+function example(
+  name: string,
+  url: string,
+  date: string,
+  screenshots: string[],
+  times: number[],
+  videos: (string | undefined)[] = [],
+): Example {
   return {
     name,
     url,
     date,
-    shots: STARTING_COUNTRIES.map((region, index) => ({ region, screenshot: screenshots[index], responseTimeMs: times[index] })),
+    shots: STARTING_COUNTRIES.map((region, index) => ({
+      region,
+      screenshot: screenshots[index],
+      responseTimeMs: times[index],
+      video: videos[index],
+    })),
   };
 }
 
 // Real results from tests run on the given dates, shown until the visitor
-// runs a test of their own.
+// runs a test of their own. CNN comes first because its page scrolls, so its
+// Brazil result shows off the scroll video; Facebook and Google fit on one
+// screen.
 const EXAMPLES: Example[] = [
+  example('CNN', 'cnn.com', '28 October 2026', [cnnUs, cnnGermany, cnnBrazil], [3943, 5444, 3079], [undefined, undefined, cnnBrazilVideo]),
   example('Facebook', 'facebook.com', '13 October 2026', [facebookUs, facebookGermany, facebookBrazil], [995, 1617, 1041]),
   example('Google', 'google.com', '13 October 2026', [googleUs, googleGermany, googleBrazil], [1528, 1488, 1203]),
-  example('CNN', 'cnn.com', '15 October 2026', [cnnUs, cnnGermany, cnnBrazil], [3158, 4525, 2443]),
 ];
 
 const POLL_INTERVAL_MS = 3000;
@@ -146,16 +162,17 @@ function describeSiteError(error: string | undefined): string {
   return "The site couldn't be loaded from here.";
 }
 
-// Runs one test in one region, with a screenshot and a scroll video. Regional
+// Runs one test in one region, with a screenshot and, if asked for, a scroll
+// video. Regional
 // tests start a Fargate task and are polled; the local test returns its
 // results directly.
-async function runTest(url: string, region: string): Promise<RegionResult> {
+async function runTest(url: string, region: string, video: boolean): Promise<RegionResult> {
   const response = await request(`${API_URL}/url`, "Couldn't start a browser here. Try again in a moment.", {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
     },
-    body: JSON.stringify({ url, region, video: true }),
+    body: JSON.stringify({ url, region, video }),
   });
 
   const data = (await response.json()) as UrlResponse;
@@ -340,6 +357,10 @@ function App() {
   const [urlError, setUrlError] = useState('');
   const [selected, setSelected] = useState<string[]>(() => STARTING_COUNTRIES.map((region) => region.value));
   const [testedUrl, setTestedUrl] = useState('');
+  // A scroll video adds time and cost, so tests take a screenshot only unless
+  // the visitor asks for one.
+  const [recordVideo, setRecordVideo] = useState(false);
+  const [testedVideo, setTestedVideo] = useState(false);
   const [results, setResults] = useState<Record<string, RegionResult>>({});
   // The enlarged view holds every shot of the test, so it can flip between
   // countries in place.
@@ -373,10 +394,10 @@ function App() {
     setResults((current) => ({ ...current, [region]: result }));
   }
 
-  async function runRegion(region: string, target: string) {
+  async function runRegion(region: string, target: string, video: boolean) {
     setResult(region, { state: 'running', startedAt: Date.now() });
     try {
-      setResult(region, await runTest(target, region));
+      setResult(region, await runTest(target, region, video));
     } catch (error) {
       if (!(error instanceof TestError)) {
         console.error(error);
@@ -388,12 +409,13 @@ function App() {
     }
   }
 
-  async function startTest(target: string, regions: string[]) {
+  async function startTest(target: string, regions: string[], video: boolean) {
     setTestedUrl(target);
+    setTestedVideo(video);
     setResults({});
     requestAnimationFrame(() => resultsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' }));
 
-    await Promise.all(regions.map((region) => runRegion(region, target)));
+    await Promise.all(regions.map((region) => runRegion(region, target, video)));
   }
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
@@ -415,6 +437,7 @@ function App() {
     await startTest(
       target,
       REGIONS.filter((region) => selected.includes(region.value)).map((region) => region.value),
+      recordVideo,
     );
   }
 
@@ -485,8 +508,8 @@ function App() {
           See how your site looks and loads in any country
         </h1>
         <p className="mt-3 max-w-3xl text-base text-slate-700 sm:text-lg">
-          Real Chrome browsers open your site in the countries you pick. You get a screenshot, the load time and a
-          video of the whole page from each one.
+          Real Chrome browsers open your site in the countries you pick. You get a screenshot and the load time
+          from each one, and a video of the whole page if you want it.
         </p>
 
         <form onSubmit={handleSubmit} noValidate className="mt-8 flex w-full max-w-3xl flex-col items-center gap-4">
@@ -548,6 +571,21 @@ function App() {
               Pick at least one country.
             </p>
           )}
+
+          <label className={`country-chip cursor-pointer ${recordVideo ? 'is-checked' : ''}`}>
+            <input
+              type="checkbox"
+              checked={recordVideo}
+              onChange={(event) => setRecordVideo(event.target.checked)}
+              className="sr-only"
+            />
+            <PlayIcon />
+            Also record a scroll video
+            <span className="text-xs font-normal text-slate-600">About 10 s longer</span>
+            <span className="country-chip-mark" aria-hidden>
+              <CheckIcon />
+            </span>
+          </label>
         </form>
       </div>
 
@@ -572,7 +610,7 @@ function App() {
                 key={region.value}
                 region={region}
                 result={results[region.value]}
-                onRetry={() => runRegion(region.value, testedUrl)}
+                onRetry={() => runRegion(region.value, testedUrl, testedVideo)}
                 onZoom={(shot) => zoom(resultShots, shot)}
               />
             ))}
@@ -610,7 +648,7 @@ function App() {
                 setUrl(shown.url);
                 setUrlError('');
                 setSelected(regions);
-                startTest(`https://${shown.url}/`, regions);
+                startTest(`https://${shown.url}/`, regions, recordVideo);
               }}
               className="retry-button"
             >
@@ -622,7 +660,7 @@ function App() {
               <ResultCard
                 key={shown.url + shot.region.value}
                 region={shot.region}
-                result={{ state: 'ok', responseTimeMs: shot.responseTimeMs, screenshot: shot.screenshot }}
+                result={{ state: 'ok', responseTimeMs: shot.responseTimeMs, screenshot: shot.screenshot, video: shot.video }}
                 onRetry={() => {}}
                 onZoom={(shot) => zoom(shown.shots, shot)}
               />
@@ -701,10 +739,24 @@ function ResultCard({
               aria-label={video ? `Watch the scroll video from ${region.label}` : `Enlarge screenshot from ${region.label}`}
               className="screenshot-button relative block size-full"
             >
-              <img src={screenshot} alt="" className="fade-in block size-full object-cover object-top" />
+              {/* A result with a video plays it in the card, muted and on a
+                  loop, unless the visitor prefers less motion. */}
+              {video && !REDUCE_MOTION ? (
+                <video
+                  ref={playMuted}
+                  src={video}
+                  poster={screenshot}
+                  loop
+                  playsInline
+                  className="fade-in block size-full object-cover object-top"
+                />
+              ) : (
+                <img src={screenshot} alt="" className="fade-in block size-full object-cover object-top" />
+              )}
               {video && (
-                <span className="play-badge" aria-hidden>
+                <span className="video-tag" aria-hidden>
                   <PlayIcon />
+                  Scroll video
                 </span>
               )}
             </button>
@@ -724,6 +776,17 @@ function ResultCard({
       </div>
     </article>
   );
+}
+
+const REDUCE_MOTION = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+// Starts a video muted. The autoPlay attribute doesn't reliably start a
+// React-rendered video, so videos start themselves here.
+function playMuted(element: HTMLVideoElement | null) {
+  if (element) {
+    element.muted = true;
+    element.play().catch(() => {});
+  }
 }
 
 function PlayIcon() {
@@ -823,15 +886,9 @@ function ScreenshotDialog({ shots, start, onClose }: { shots: Shot[]; start: num
         <div className="min-h-0 overflow-auto">
           {video && showVideo ? (
             // Only rendered once the video view is open, so nothing downloads
-            // until someone asks to watch. The autoPlay attribute doesn't
-            // reliably start a React-rendered video, so start it here.
+            // until someone asks to watch.
             <video
-              ref={(element) => {
-                if (element) {
-                  element.muted = true;
-                  element.play().catch(() => {});
-                }
-              }}
+              ref={playMuted}
               src={video}
               poster={screenshot}
               controls
