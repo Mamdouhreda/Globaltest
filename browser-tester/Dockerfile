@@ -12,6 +12,13 @@ RUN CGO_ENABLED=0 go build -ldflags="-s -w" -o /browser-tester .
 # storage cost and Fargate cold-start time on every test run.
 FROM chromedp/headless-shell:latest
 
+# headless-shell ships only DejaVu, which has no Indian, Arabic or Thai
+# letters, so sites in those scripts rendered as empty boxes. Noto's core
+# set covers them (but not Chinese, Japanese or Korean).
+RUN apt-get update \
+  && apt-get install -y --no-install-recommends fonts-noto-core \
+  && rm -rf /var/lib/apt/lists/*
+
 # ffmpeg encodes the scroll recording into an MP4. A static build is ~100MB,
 # where Debian's ffmpeg package and its libraries add ~400MB.
 COPY --from=mwader/static-ffmpeg:7.1.1 /ffmpeg /usr/local/bin/ffmpeg
