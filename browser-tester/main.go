@@ -10,7 +10,8 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"strings"
+	"sort"
+	"strconv"
 	"sync"
 	"time"
 
@@ -159,16 +160,21 @@ type screencastFrame struct {
 	at   time.Time
 }
 
-// scrollScript pauses at the top, scrolls to the bottom (or for at most 12s,
-// for pages that load more as you scroll), then pauses at the bottom.
+// scrollScript pauses at the top, scrolls to the bottom (or until the page
+// stops moving, say when a popup locks scrolling, or for at most 12s, for
+// pages that load more as you scroll), then pauses at the bottom.
 const scrollScript = `new Promise(resolve => {
 	const pause = ms => new Promise(r => setTimeout(r, ms));
 	pause(1000).then(() => {
 		const started = Date.now();
+		let lastY = -1;
+		let still = 0;
 		const timer = setInterval(() => {
 			window.scrollBy(0, 40);
+			still = window.scrollY === lastY ? still + 1 : 0;
+			lastY = window.scrollY;
 			const atBottom = window.innerHeight + window.scrollY >= document.documentElement.scrollHeight - 2;
-			if (atBottom || Date.now() - started > 12000) {
+			if (atBottom || still > 30 || Date.now() - started > 12000) {
 				clearInterval(timer);
 				pause(1000).then(() => resolve(true));
 			}
@@ -220,19 +226,27 @@ func recordScroll(ctx context.Context) ([]byte, error) {
 	); err != nil {
 		return nil, fmt.Errorf("record scroll: %w", err)
 	}
+	ended := time.Now()
 
 	mu.Lock()
 	defer mu.Unlock()
-	return encodeMP4(ctx, frames)
+	return encodeMP4(ctx, frames, ended)
 }
 
+// videoFPS is the frame rate of the scroll video.
+const videoFPS = 24
+
 // encodeMP4 turns screencast frames into an H.264 MP4 with ffmpeg. Chrome
-// only sends a frame when the page changes, so each frame is shown until the
-// next one arrived, via ffmpeg's concat demuxer durations.
-func encodeMP4(ctx context.Context, frames []screencastFrame) ([]byte, error) {
+// only sends a frame when the page changes, so the frames are resampled to a
+// steady rate first: each video frame is the latest one Chrome had sent by
+// then, and the last is held until the recording ended. (ffmpeg's concat
+// demuxer can do this from per-frame durations, but it dropped the ~17ms
+// frames of a scroll, so the video never moved.)
+func encodeMP4(ctx context.Context, frames []screencastFrame, ended time.Time) ([]byte, error) {
 	if len(frames) < 2 {
 		return nil, fmt.Errorf("only %d screencast frames captured", len(frames))
 	}
+	sort.Slice(frames, func(i, j int) bool { return frames[i].at.Before(frames[j].at) })
 
 	dir, err := os.MkdirTemp("", "scroll-")
 	if err != nil {
@@ -240,30 +254,38 @@ func encodeMP4(ctx context.Context, frames []screencastFrame) ([]byte, error) {
 	}
 	defer os.RemoveAll(dir)
 
-	var list strings.Builder
-	for i, frame := range frames {
-		name := fmt.Sprintf("frame-%05d.jpg", i)
-		if err := os.WriteFile(filepath.Join(dir, name), frame.jpeg, 0o644); err != nil {
+	start := frames[0].at
+	length := ended.Sub(start)
+	if last := frames[len(frames)-1].at.Sub(start); length < last {
+		length = last
+	}
+	count := int(length.Seconds()*videoFPS) + 1
+
+	source, written := 0, -1
+	var previous string
+	for i := 0; i < count; i++ {
+		at := start.Add(time.Duration(float64(i) * float64(time.Second) / videoFPS))
+		for source+1 < len(frames) && !frames[source+1].at.After(at) {
+			source++
+		}
+		name := filepath.Join(dir, fmt.Sprintf("frame-%05d.jpg", i))
+		// A frame shown again is a hard link to its first copy, not another
+		// write of the JPEG.
+		if source == written {
+			err = os.Link(previous, name)
+		} else {
+			err = os.WriteFile(name, frames[source].jpeg, 0o644)
+		}
+		if err != nil {
 			return nil, err
 		}
-		duration := 1.0 / 30
-		if i+1 < len(frames) {
-			duration = frames[i+1].at.Sub(frame.at).Seconds()
-		}
-		fmt.Fprintf(&list, "file '%s'\nduration %.4f\n", name, duration)
-	}
-	// The concat demuxer ignores the last frame's duration unless the frame
-	// is listed again.
-	fmt.Fprintf(&list, "file 'frame-%05d.jpg'\n", len(frames)-1)
-
-	if err := os.WriteFile(filepath.Join(dir, "list.txt"), []byte(list.String()), 0o644); err != nil {
-		return nil, err
+		written, previous = source, name
 	}
 
 	out := filepath.Join(dir, "scroll.mp4")
 	cmd := exec.CommandContext(ctx, "ffmpeg", "-hide_banner", "-loglevel", "error",
-		"-f", "concat", "-safe", "0", "-i", filepath.Join(dir, "list.txt"),
-		"-vf", "scale=trunc(iw/2)*2:trunc(ih/2)*2,fps=24",
+		"-framerate", strconv.Itoa(videoFPS), "-i", filepath.Join(dir, "frame-%05d.jpg"),
+		"-vf", "scale=trunc(iw/2)*2:trunc(ih/2)*2",
 		"-c:v", "libx264", "-preset", "veryfast", "-crf", "32",
 		"-pix_fmt", "yuv420p", "-movflags", "+faststart",
 		out,
