@@ -6,7 +6,7 @@ GlobalTest lets you drop in a URL, pick a region, and get back a real screenshot
 
 ## How it works
 
-A Go backend receives the request and, once it's fully wired up, launches an on-demand AWS Fargate task in the region you picked. That task runs Chromium, navigates to your URL, grabs a screenshot, and hands the result back. No servers sit around waiting between tests.
+A Go backend receives the request and, once it's fully wired up, launches an on-demand AWS Fargate task in the region you picked. That task runs Chromium, navigates to your URL, grabs a screenshot and the load time, records a short video of the page scrolling, and hands the result back. No servers sit around waiting between tests.
 
 If you want the full architecture story — why Fargate over EC2, why no NAT gateway, how regions get added — it's all written up in [PROJECT_SUMMARY.md](PROJECT_SUMMARY.md).
 

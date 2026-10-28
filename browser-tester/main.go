@@ -3,16 +3,23 @@ package main
 import (
 	"bytes"
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"log"
 	"os"
+	"os/exec"
 	"path/filepath"
+	"strings"
+	"sync"
 	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
+	"github.com/chromedp/cdproto/cdp"
+	"github.com/chromedp/cdproto/page"
+	"github.com/chromedp/cdproto/runtime"
 	"github.com/chromedp/chromedp"
 )
 
@@ -21,6 +28,7 @@ type result struct {
 	URL            string `json:"url"`
 	ResponseTimeMs int64  `json:"responseTimeMs"`
 	Error          string `json:"error,omitempty"`
+	HasVideo       bool   `json:"hasVideo,omitempty"`
 }
 
 // main reads TARGET_URL from the environment (set via an ECS RunTask
@@ -44,10 +52,16 @@ func main() {
 		outputDir = "."
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 45*time.Second)
+	// Room for the page load, the scroll recording (at most ~14s) and the
+	// MP4 encode.
+	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
 	defer cancel()
 
-	capture, captureErr := captureSite(ctx, targetURL)
+	// Recording a scroll video is opt-in (RECORD_VIDEO=true), since it adds
+	// time and cost to every test.
+	recordVideo := os.Getenv("RECORD_VIDEO") == "true"
+
+	capture, captureErr := captureSite(ctx, targetURL, recordVideo)
 
 	res := result{URL: targetURL}
 	if captureErr != nil {
@@ -56,9 +70,10 @@ func main() {
 	} else {
 		res.Status = "ok"
 		res.ResponseTimeMs = capture.responseTime.Milliseconds()
+		res.HasVideo = len(capture.mp4) > 0
 	}
 
-	if err := writeResults(ctx, testID, outputDir, res, capture.png); err != nil {
+	if err := writeResults(ctx, testID, outputDir, res, capture.png, capture.mp4); err != nil {
 		log.Fatalf("failed to write results: %v", err)
 	}
 
@@ -73,20 +88,27 @@ func main() {
 type captureResult struct {
 	responseTime time.Duration
 	png          []byte
+	// mp4 is a video of the page scrolling top to bottom. It is nil if the
+	// recording failed, which doesn't fail the test.
+	mp4 []byte
 }
 
-// captureSite navigates Chrome to the URL and captures a screenshot.
+// captureSite navigates Chrome to the URL, captures a screenshot, then (if
+// recordVideo is set) records a video of the page scrolling.
 // Adapted from backend/main.go's captureSite for running inside a container:
 // adds an explicit no-sandbox allocator (Chromium refuses to launch as root
 // without it) and relies on the caller-supplied context deadline instead of
 // running unbounded, since a hung page on Fargate would otherwise bill
 // indefinitely.
-func captureSite(ctx context.Context, siteURL string) (captureResult, error) {
+func captureSite(ctx context.Context, siteURL string, recordVideo bool) (captureResult, error) {
 	allocCtx, allocCancel := chromedp.NewExecAllocator(ctx, append(
 		chromedp.DefaultExecAllocatorOptions[:],
 		chromedp.NoSandbox,
 		chromedp.Flag("disable-gpu", true),
 		chromedp.Flag("mute-audio", true),
+		// The scroll video records the window, not the emulated viewport,
+		// so the window must match it.
+		chromedp.WindowSize(1280, 720),
 	)...)
 	defer allocCancel()
 
@@ -105,26 +127,174 @@ func captureSite(ctx context.Context, siteURL string) (captureResult, error) {
 		return captureResult{}, fmt.Errorf("failed to capture URL in Chrome: %w", err)
 	}
 
+	responseTime := time.Since(start)
+
+	if !recordVideo {
+		return captureResult{responseTime: responseTime, png: screenshot}, nil
+	}
+
+	// Stop recording well before the deadline, so a slow page still leaves
+	// time to upload the screenshot and result.
+	recordCtx := taskCtx
+	if deadline, ok := ctx.Deadline(); ok {
+		var recordCancel context.CancelFunc
+		recordCtx, recordCancel = context.WithDeadline(taskCtx, deadline.Add(-10*time.Second))
+		defer recordCancel()
+	}
+
+	mp4, err := recordScroll(recordCtx)
+	if err != nil {
+		log.Printf("scroll video skipped: %v", err)
+	}
+
 	return captureResult{
-		responseTime: time.Since(start),
+		responseTime: responseTime,
 		png:          screenshot,
+		mp4:          mp4,
 	}, nil
 }
 
-func writeResults(ctx context.Context, testID, outputDir string, res result, png []byte) error {
-	if bucket := os.Getenv("RESULTS_BUCKET"); bucket != "" {
-		return uploadToS3(ctx, bucket, testID, res, png)
-	}
-	return writeLocal(outputDir, testID, res, png)
+type screencastFrame struct {
+	jpeg []byte
+	at   time.Time
 }
 
-func writeLocal(outputDir, testID string, res result, png []byte) error {
+// scrollScript pauses at the top, scrolls to the bottom (or for at most 12s,
+// for pages that load more as you scroll), then pauses at the bottom.
+const scrollScript = `new Promise(resolve => {
+	const pause = ms => new Promise(r => setTimeout(r, ms));
+	pause(1000).then(() => {
+		const started = Date.now();
+		const timer = setInterval(() => {
+			window.scrollBy(0, 40);
+			const atBottom = window.innerHeight + window.scrollY >= document.documentElement.scrollHeight - 2;
+			if (atBottom || Date.now() - started > 12000) {
+				clearInterval(timer);
+				pause(1000).then(() => resolve(true));
+			}
+		}, 16);
+	});
+})`
+
+// recordScroll records Chrome's screen with the DevTools screencast while
+// scrollScript runs, and encodes the frames as an MP4.
+func recordScroll(ctx context.Context) ([]byte, error) {
+	var (
+		mu     sync.Mutex
+		frames []screencastFrame
+	)
+
+	chromedp.ListenTarget(ctx, func(ev any) {
+		frame, ok := ev.(*page.EventScreencastFrame)
+		if !ok {
+			return
+		}
+		at := time.Now()
+		if frame.Metadata != nil && frame.Metadata.Timestamp != nil {
+			at = frame.Metadata.Timestamp.Time()
+		}
+		if data, err := base64.StdEncoding.DecodeString(frame.Data); err == nil {
+			mu.Lock()
+			frames = append(frames, screencastFrame{jpeg: data, at: at})
+			mu.Unlock()
+		}
+		// Chrome stops sending frames until each one is acked. Listeners
+		// must not block, so ack from a goroutine.
+		go func() {
+			c := chromedp.FromContext(ctx)
+			_ = page.ScreencastFrameAck(frame.SessionID).Do(cdp.WithExecutor(ctx, c.Target))
+		}()
+	})
+
+	var done bool
+	if err := chromedp.Run(ctx,
+		page.StartScreencast().
+			WithFormat(page.ScreencastFormatJpeg).
+			WithQuality(70).
+			WithMaxWidth(960).
+			WithMaxHeight(540),
+		chromedp.Evaluate(scrollScript, &done, func(p *runtime.EvaluateParams) *runtime.EvaluateParams {
+			return p.WithAwaitPromise(true)
+		}),
+		page.StopScreencast(),
+	); err != nil {
+		return nil, fmt.Errorf("record scroll: %w", err)
+	}
+
+	mu.Lock()
+	defer mu.Unlock()
+	return encodeMP4(ctx, frames)
+}
+
+// encodeMP4 turns screencast frames into an H.264 MP4 with ffmpeg. Chrome
+// only sends a frame when the page changes, so each frame is shown until the
+// next one arrived, via ffmpeg's concat demuxer durations.
+func encodeMP4(ctx context.Context, frames []screencastFrame) ([]byte, error) {
+	if len(frames) < 2 {
+		return nil, fmt.Errorf("only %d screencast frames captured", len(frames))
+	}
+
+	dir, err := os.MkdirTemp("", "scroll-")
+	if err != nil {
+		return nil, err
+	}
+	defer os.RemoveAll(dir)
+
+	var list strings.Builder
+	for i, frame := range frames {
+		name := fmt.Sprintf("frame-%05d.jpg", i)
+		if err := os.WriteFile(filepath.Join(dir, name), frame.jpeg, 0o644); err != nil {
+			return nil, err
+		}
+		duration := 1.0 / 30
+		if i+1 < len(frames) {
+			duration = frames[i+1].at.Sub(frame.at).Seconds()
+		}
+		fmt.Fprintf(&list, "file '%s'\nduration %.4f\n", name, duration)
+	}
+	// The concat demuxer ignores the last frame's duration unless the frame
+	// is listed again.
+	fmt.Fprintf(&list, "file 'frame-%05d.jpg'\n", len(frames)-1)
+
+	if err := os.WriteFile(filepath.Join(dir, "list.txt"), []byte(list.String()), 0o644); err != nil {
+		return nil, err
+	}
+
+	out := filepath.Join(dir, "scroll.mp4")
+	cmd := exec.CommandContext(ctx, "ffmpeg", "-hide_banner", "-loglevel", "error",
+		"-f", "concat", "-safe", "0", "-i", filepath.Join(dir, "list.txt"),
+		"-vf", "scale=trunc(iw/2)*2:trunc(ih/2)*2,fps=24",
+		"-c:v", "libx264", "-preset", "veryfast", "-crf", "32",
+		"-pix_fmt", "yuv420p", "-movflags", "+faststart",
+		out,
+	)
+	if output, err := cmd.CombinedOutput(); err != nil {
+		return nil, fmt.Errorf("ffmpeg: %w: %s", err, output)
+	}
+
+	return os.ReadFile(out)
+}
+
+func writeResults(ctx context.Context, testID, outputDir string, res result, png, mp4 []byte) error {
+	if bucket := os.Getenv("RESULTS_BUCKET"); bucket != "" {
+		return uploadToS3(ctx, bucket, testID, res, png, mp4)
+	}
+	return writeLocal(outputDir, testID, res, png, mp4)
+}
+
+func writeLocal(outputDir, testID string, res result, png, mp4 []byte) error {
 	if err := os.MkdirAll(outputDir, 0o755); err != nil {
 		return err
 	}
 
 	if len(png) > 0 {
 		if err := os.WriteFile(filepath.Join(outputDir, testID+".png"), png, 0o644); err != nil {
+			return err
+		}
+	}
+
+	if len(mp4) > 0 {
+		if err := os.WriteFile(filepath.Join(outputDir, testID+".mp4"), mp4, 0o644); err != nil {
 			return err
 		}
 	}
@@ -136,7 +306,7 @@ func writeLocal(outputDir, testID string, res result, png []byte) error {
 	return os.WriteFile(filepath.Join(outputDir, testID+".json"), resJSON, 0o644)
 }
 
-func uploadToS3(ctx context.Context, bucket, testID string, res result, png []byte) error {
+func uploadToS3(ctx context.Context, bucket, testID string, res result, png, mp4 []byte) error {
 	var opts []func(*config.LoadOptions) error
 	if region := os.Getenv("RESULTS_BUCKET_REGION"); region != "" {
 		opts = append(opts, config.WithRegion(region))
@@ -155,6 +325,17 @@ func uploadToS3(ctx context.Context, bucket, testID string, res result, png []by
 			ContentType: aws.String("image/png"),
 		}); err != nil {
 			return fmt.Errorf("upload screenshot: %w", err)
+		}
+	}
+
+	if len(mp4) > 0 {
+		if _, err := client.PutObject(ctx, &s3.PutObjectInput{
+			Bucket:      aws.String(bucket),
+			Key:         aws.String("results/" + testID + ".mp4"),
+			Body:        bytes.NewReader(mp4),
+			ContentType: aws.String("video/mp4"),
+		}); err != nil {
+			return fmt.Errorf("upload video: %w", err)
 		}
 	}
 

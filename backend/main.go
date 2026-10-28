@@ -32,6 +32,9 @@ type urlRequest struct {
 	// locally instead — the original dev-time behavior, kept as a fallback
 	// for testing without any AWS infrastructure deployed.
 	Region string `json:"region,omitempty"`
+	// Video asks for a scroll video as well as the screenshot. It is opt-in
+	// since it adds time and cost to every test.
+	Video bool `json:"video,omitempty"`
 }
 
 type urlResponse struct {
@@ -39,6 +42,7 @@ type urlResponse struct {
 	URL            string `json:"url"`
 	ResponseTimeMs int64  `json:"responseTimeMs,omitempty"`
 	Screenshot     string `json:"screenshot,omitempty"`
+	Video          string `json:"video,omitempty"`
 	// TaskArn is set instead of Screenshot when the test ran as a Fargate
 	// task — there's no result-polling yet (that needs the S3 bucket and
 	// task definition from later steps), so a region-based request only
@@ -94,17 +98,17 @@ func receiveURL(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if request.Region == "" || request.Region == "local" {
-		receiveURLLocal(w, request.URL)
+		receiveURLLocal(w, request.URL, request.Video)
 		return
 	}
 
-	receiveURLFargate(w, r, request.URL, request.Region)
+	receiveURLFargate(w, r, request.URL, request.Region, request.Video)
 }
 
-func receiveURLLocal(w http.ResponseWriter, url string) {
+func receiveURLLocal(w http.ResponseWriter, url string, video bool) {
 	fmt.Printf("received URL (local): %s\n", url)
 
-	result, err := captureSite(url)
+	result, err := captureSite(url, video)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadGateway)
 		return
@@ -112,16 +116,21 @@ func receiveURLLocal(w http.ResponseWriter, url string) {
 
 	fmt.Printf("response time: %dms\n", result.responseTime.Milliseconds())
 
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(urlResponse{
+	response := urlResponse{
 		Status:         "ok",
 		URL:            url,
 		ResponseTimeMs: result.responseTime.Milliseconds(),
 		Screenshot:     "data:image/png;base64," + base64.StdEncoding.EncodeToString(result.screenshot),
-	})
+	}
+	if len(result.mp4) > 0 {
+		response.Video = "data:video/mp4;base64," + base64.StdEncoding.EncodeToString(result.mp4)
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(response)
 }
 
-func receiveURLFargate(w http.ResponseWriter, r *http.Request, url, region string) {
+func receiveURLFargate(w http.ResponseWriter, r *http.Request, url, region string, video bool) {
 	cfg, ok := loadRegionConfigs()[region]
 	if !ok {
 		http.Error(w, fmt.Sprintf("unknown region %q (expected one of: %s)", region, strings.Join(testingRegions, ", ")), http.StatusBadRequest)
@@ -136,7 +145,7 @@ func receiveURLFargate(w http.ResponseWriter, r *http.Request, url, region strin
 		return
 	}
 
-	taskArn, err := runBrowserTestTask(r.Context(), cfg, url, testID)
+	taskArn, err := runBrowserTestTask(r.Context(), cfg, url, testID, video)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadGateway)
 		return
@@ -167,11 +176,15 @@ type resultResponse struct {
 	ResponseTimeMs int64  `json:"responseTimeMs,omitempty"`
 	Error          string `json:"error,omitempty"`
 	Screenshot     string `json:"screenshot,omitempty"`
+	HasVideo       bool   `json:"hasVideo,omitempty"`
+	// Video is a presigned S3 link to the scroll recording. It is a link
+	// rather than inline base64 because Lambda responses are capped at 6MB.
+	Video string `json:"video,omitempty"`
 }
 
 // receiveResult reports the outcome of a Fargate test by reading the result
-// JSON (and screenshot) the browser-tester task wrote to S3. A missing
-// object just means the task hasn't finished yet.
+// JSON (and screenshot, and a link to the scroll video) the browser-tester
+// task wrote to S3. A missing object just means the task hasn't finished yet.
 func receiveResult(w http.ResponseWriter, r *http.Request) {
 	id := r.URL.Query().Get("id")
 	if !testIDPattern.MatchString(id) {
@@ -187,7 +200,6 @@ func receiveResult(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	client := s3.NewFromConfig(awsCfg)
-
 	w.Header().Set("Content-Type", "application/json")
 
 	obj, err := client.GetObject(ctx, &s3.GetObjectInput{
@@ -229,17 +241,40 @@ func receiveResult(w http.ResponseWriter, r *http.Request) {
 		res.Screenshot = "data:image/png;base64," + base64.StdEncoding.EncodeToString(buf.Bytes())
 	}
 
+	if res.HasVideo {
+		video, err := s3.NewPresignClient(client).PresignGetObject(ctx, &s3.GetObjectInput{
+			Bucket: aws.String(bucket),
+			Key:    aws.String("results/" + id + ".mp4"),
+		}, s3.WithPresignExpires(time.Hour))
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusBadGateway)
+			return
+		}
+		res.Video = video.URL
+	}
+
 	json.NewEncoder(w).Encode(res)
 }
 
 type captureResult struct {
 	responseTime time.Duration
 	screenshot   []byte
+	mp4          []byte
 }
 
-// captureSite navigates Chrome to the URL and captures a screenshot.
-func captureSite(siteURL string) (captureResult, error) {
-	ctx, cancel := chromedp.NewContext(context.Background())
+// captureSite navigates Chrome to the URL and captures a screenshot, then (if
+// recordVideo is set) records a video of the page scrolling. Recording needs
+// ffmpeg on PATH; without it the test still returns the screenshot.
+func captureSite(siteURL string, recordVideo bool) (captureResult, error) {
+	// The scroll video records the window, not the emulated viewport, so the
+	// window must match it.
+	allocCtx, allocCancel := chromedp.NewExecAllocator(context.Background(), append(
+		chromedp.DefaultExecAllocatorOptions[:],
+		chromedp.WindowSize(1280, 720),
+	)...)
+	defer allocCancel()
+
+	ctx, cancel := chromedp.NewContext(allocCtx)
 	defer cancel()
 
 	var screenshot []byte
@@ -255,10 +290,20 @@ func captureSite(siteURL string) (captureResult, error) {
 		return captureResult{}, fmt.Errorf("failed to capture URL in Chrome: %w", err)
 	}
 
-	return captureResult{
+	result := captureResult{
 		responseTime: time.Since(start),
 		screenshot:   screenshot,
-	}, nil
+	}
+
+	if recordVideo {
+		mp4, err := recordScroll(ctx)
+		if err != nil {
+			log.Printf("scroll video skipped: %v", err)
+		}
+		result.mp4 = mp4
+	}
+
+	return result, nil
 }
 
 // withCORS allows the React frontend to send requests to this backend.
