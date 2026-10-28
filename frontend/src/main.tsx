@@ -1,16 +1,26 @@
 import React, { useEffect, useId, useRef, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import { AU, BR, DE, GB, IE, IN, US } from 'country-flag-icons/react/3x2';
-import cnnBrazil from './assets/example-cnn-brazil.jpg';
-import cnnBrazilVideo from './assets/example-cnn-brazil.mp4';
-import cnnGermany from './assets/example-cnn-germany.jpg';
-import cnnUs from './assets/example-cnn-us.jpg';
 import facebookBrazil from './assets/example-facebook-brazil.png';
 import facebookGermany from './assets/example-facebook-germany.png';
+import facebookIndia from './assets/example-facebook-india.png';
 import facebookUs from './assets/example-facebook-us.png';
-import googleBrazil from './assets/example-google-brazil.png';
-import googleGermany from './assets/example-google-germany.png';
-import googleUs from './assets/example-google-us.png';
+import msnBrazil from './assets/example-msn-brazil.jpg';
+import msnBrazilVideo from './assets/example-msn-brazil.mp4';
+import msnGermany from './assets/example-msn-germany.jpg';
+import msnGermanyVideo from './assets/example-msn-germany.mp4';
+import msnIndia from './assets/example-msn-india.jpg';
+import msnIndiaVideo from './assets/example-msn-india.mp4';
+import msnUs from './assets/example-msn-us.jpg';
+import msnUsVideo from './assets/example-msn-us.mp4';
+import yahooBrazil from './assets/example-yahoo-brazil.jpg';
+import yahooBrazilVideo from './assets/example-yahoo-brazil.mp4';
+import yahooGermany from './assets/example-yahoo-germany.jpg';
+import yahooGermanyVideo from './assets/example-yahoo-germany.mp4';
+import yahooIndia from './assets/example-yahoo-india.jpg';
+import yahooIndiaVideo from './assets/example-yahoo-india.mp4';
+import yahooUs from './assets/example-yahoo-us.jpg';
+import yahooUsVideo from './assets/example-yahoo-us.mp4';
 import './guide';
 import './styles.css';
 
@@ -69,11 +79,12 @@ const REGIONS: Region[] = [
 
 type Shot = { region: Region; screenshot: string; responseTimeMs?: number; video?: string };
 
-type Example = { name: string; url: string; date: string; shots: Shot[] };
+// videoFirst lists the countries whose cards open on their video tab.
+type Example = { name: string; url: string; date: string; shots: Shot[]; videoFirst?: string[] };
 
 // The countries a first visit starts with, and the ones the examples show:
-// the United States, Germany and Brazil.
-const STARTING_COUNTRIES = [COUNTRIES[1], COUNTRIES[2], COUNTRIES[6]];
+// the United States, Brazil, Germany and India.
+const STARTING_COUNTRIES = [COUNTRIES[1], COUNTRIES[6], COUNTRIES[2], COUNTRIES[5]];
 
 // One example per site, with a screenshot and a time for each starting
 // country, and a scroll video for some.
@@ -99,13 +110,18 @@ function example(
 }
 
 // Real results from tests run on the given dates, shown until the visitor
-// runs a test of their own. CNN comes first because its page scrolls, so its
-// Brazil result shows off the scroll video; Facebook and Google fit on one
-// screen.
+// runs a test of their own, in the order of STARTING_COUNTRIES. MSN and Yahoo
+// change language and news by country and their pages scroll, so every
+// result has a scroll video; Facebook fits on one screen. MSN, shown first,
+// plays two of its videos straight away beside two screenshots, to show
+// both.
 const EXAMPLES: Example[] = [
-  example('CNN', 'cnn.com', '28 October 2026', [cnnUs, cnnGermany, cnnBrazil], [3943, 5444, 2252], [undefined, undefined, cnnBrazilVideo]),
-  example('Facebook', 'facebook.com', '13 October 2026', [facebookUs, facebookGermany, facebookBrazil], [995, 1617, 1041]),
-  example('Google', 'google.com', '13 October 2026', [googleUs, googleGermany, googleBrazil], [1528, 1488, 1203]),
+  {
+    ...example('MSN', 'msn.com', '28 October 2026', [msnUs, msnBrazil, msnGermany, msnIndia], [10978, 6255, 9588, 6945], [msnUsVideo, msnBrazilVideo, msnGermanyVideo, msnIndiaVideo]),
+    videoFirst: ['germany', 'india'],
+  },
+  example('Yahoo', 'yahoo.com', '28 October 2026', [yahooUs, yahooBrazil, yahooGermany, yahooIndia], [1913, 3422, 2368, 2025], [yahooUsVideo, yahooBrazilVideo, yahooGermanyVideo, yahooIndiaVideo]),
+  example('Facebook', 'facebook.com', '28 October 2026', [facebookUs, facebookBrazil, facebookGermany, facebookIndia], [1042, 1159, 1011, 1127]),
 ];
 
 const POLL_INTERVAL_MS = 3000;
@@ -323,6 +339,47 @@ function CountryChips({
   );
 }
 
+// What each test captures: a screenshot, or a screenshot and a scroll video.
+// The two are radios dressed as chips.
+function CaptureChoice({ recordVideo, onChange }: { recordVideo: boolean; onChange: (recordVideo: boolean) => void }) {
+  const labelId = useId();
+  const name = useId();
+  const options = [
+    { video: false, label: 'Screenshot', icon: <ImageIcon /> },
+    { video: true, label: 'Screenshot and video', icon: <PlayIcon />, note: 'About 10 s longer' },
+  ];
+
+  return (
+    <div role="radiogroup" aria-labelledby={labelId} className="flex flex-col items-center gap-2.5">
+      <p id={labelId} className="text-sm font-semibold text-slate-800">
+        Capture
+      </p>
+      <div className="flex flex-wrap justify-center gap-2">
+        {options.map((option) => {
+          const checked = recordVideo === option.video;
+          return (
+            <label key={option.label} className={`country-chip cursor-pointer ${checked ? 'is-checked' : ''}`}>
+              <input
+                type="radio"
+                name={name}
+                checked={checked}
+                onChange={() => onChange(option.video)}
+                className="sr-only"
+              />
+              {option.icon}
+              {option.label}
+              {option.note && <span className="text-xs font-normal text-slate-600">{option.note}</span>}
+              <span className="country-chip-mark" aria-hidden>
+                <CheckIcon />
+              </span>
+            </label>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 function CheckIcon() {
   return (
     <svg viewBox="0 0 12 12" className="size-2.5" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
@@ -364,7 +421,7 @@ function App() {
   const [results, setResults] = useState<Record<string, RegionResult>>({});
   // The enlarged view holds every shot of the test, so it can flip between
   // countries in place.
-  const [zoomed, setZoomed] = useState<{ shots: Shot[]; index: number } | null>(null);
+  const [zoomed, setZoomed] = useState<{ shots: Shot[]; index: number; showVideo: boolean } | null>(null);
   const [exampleIndex, setExampleIndex] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
   const resultsRef = useRef<HTMLElement>(null);
@@ -478,8 +535,8 @@ function App() {
     }
   }
 
-  function zoom(shots: Shot[], shot: Shot) {
-    setZoomed({ shots, index: Math.max(0, shots.findIndex((item) => item.region.value === shot.region.value)) });
+  function zoom(shots: Shot[], shot: Shot, showVideo: boolean) {
+    setZoomed({ shots, index: Math.max(0, shots.findIndex((item) => item.region.value === shot.region.value)), showVideo });
   }
 
   const shown = EXAMPLES[exampleIndex];
@@ -572,20 +629,7 @@ function App() {
             </p>
           )}
 
-          <label className={`country-chip cursor-pointer ${recordVideo ? 'is-checked' : ''}`}>
-            <input
-              type="checkbox"
-              checked={recordVideo}
-              onChange={(event) => setRecordVideo(event.target.checked)}
-              className="sr-only"
-            />
-            <PlayIcon />
-            Also record a scroll video
-            <span className="text-xs font-normal text-slate-600">About 10 s longer</span>
-            <span className="country-chip-mark" aria-hidden>
-              <CheckIcon />
-            </span>
-          </label>
+          <CaptureChoice recordVideo={recordVideo} onChange={setRecordVideo} />
         </form>
       </div>
 
@@ -611,7 +655,7 @@ function App() {
                 region={region}
                 result={results[region.value]}
                 onRetry={() => runRegion(region.value, testedUrl, testedVideo)}
-                onZoom={(shot) => zoom(resultShots, shot)}
+                onZoom={(shot, showVideo) => zoom(resultShots, shot, showVideo)}
               />
             ))}
           </div>
@@ -623,22 +667,27 @@ function App() {
           <div className="mb-5 flex flex-col items-center gap-2 text-center">
             <h2 id="example-heading" className="text-xl font-bold tracking-tight text-slate-900 sm:text-2xl">
               Here’s{' '}
-              <select
-                value={exampleIndex}
-                onChange={(event) => setExampleIndex(Number(event.target.value))}
-                aria-label="Example website"
-                className="site-select"
-              >
-                {EXAMPLES.map((item, index) => (
-                  <option key={item.url} value={index}>
-                    {item.name}
-                  </option>
-                ))}
-              </select>{' '}
+              <span className="site-select-wrap">
+                <span className="site-select-sizer" aria-hidden>
+                  {shown.name}
+                </span>
+                <select
+                  value={exampleIndex}
+                  onChange={(event) => setExampleIndex(Number(event.target.value))}
+                  aria-label="Example website"
+                  className="site-select"
+                >
+                  {EXAMPLES.map((item, index) => (
+                    <option key={item.url} value={index}>
+                      {item.name}
+                    </option>
+                  ))}
+                </select>
+              </span>{' '}
               from around the world
             </h2>
             <p className="text-sm text-slate-700">
-              Real results for {shown.url} from {shown.date}. Compare the language, the prices and the cookie
+              Real results for {shown.url} from {shown.date}. Compare the language, the news and the cookie
               banner in each country. Open one, then flip between countries with the arrows.
             </p>
             <button
@@ -662,14 +711,22 @@ function App() {
                 region={shot.region}
                 result={{ state: 'ok', responseTimeMs: shot.responseTimeMs, screenshot: shot.screenshot, video: shot.video }}
                 onRetry={() => {}}
-                onZoom={(shot) => zoom(shown.shots, shot)}
+                startOnVideo={shown.videoFirst?.includes(shot.region.value)}
+                onZoom={(shot, showVideo) => zoom(shown.shots, shot, showVideo)}
               />
             ))}
           </div>
         </section>
       )}
 
-      {zoomed && <ScreenshotDialog shots={zoomed.shots} start={zoomed.index} onClose={() => setZoomed(null)} />}
+      {zoomed && (
+        <ScreenshotDialog
+          shots={zoomed.shots}
+          start={zoomed.index}
+          startOnVideo={zoomed.showVideo}
+          onClose={() => setZoomed(null)}
+        />
+      )}
     </main>
   );
 }
@@ -708,19 +765,27 @@ function ResultCard({
   result,
   onRetry,
   onZoom,
+  startOnVideo = false,
 }: {
   region: Region;
   result: RegionResult;
   onRetry: () => void;
-  onZoom: (shot: Shot) => void;
+  onZoom: (shot: Shot, showVideo: boolean) => void;
+  startOnVideo?: boolean;
 }) {
   const { screenshot, responseTimeMs, video } = result.state === 'ok' ? result : {};
+  // A result with a video has tabs to swap between it and the screenshot.
+  // The screenshot shows first unless the card starts on the video; the
+  // video plays once its tab is picked.
+  const [showVideo, setShowVideo] = useState(startOnVideo);
+  const playing = Boolean(video && showVideo);
 
   return (
     <article className="glass-card overflow-hidden rounded-2xl">
       <header className="flex flex-wrap items-center gap-x-2 gap-y-1 px-3 py-2">
         <span aria-hidden>{region.flag}</span>
         <h3 className="min-w-0 flex-1 basis-20 truncate text-sm font-semibold text-slate-900">{region.label}</h3>
+        {video && screenshot && <ViewToggle showVideo={showVideo} onChange={setShowVideo} label={region.label} />}
         {result.state === 'running' && <span className="status bg-amber-100 text-amber-900">Running</span>}
         {result.state === 'ok' && (
           <span className="status bg-emerald-100 text-emerald-900">
@@ -735,13 +800,14 @@ function ResultCard({
           (screenshot ? (
             <button
               type="button"
-              onClick={() => onZoom({ region, screenshot, responseTimeMs, video })}
-              aria-label={video ? `Watch the scroll video from ${region.label}` : `Enlarge screenshot from ${region.label}`}
+              onClick={() => onZoom({ region, screenshot, responseTimeMs, video }, playing)}
+              aria-label={playing ? `Watch the scroll video from ${region.label}` : `Enlarge screenshot from ${region.label}`}
               className="screenshot-button relative block size-full"
             >
-              {/* A result with a video plays it in the card, muted and on a
-                  loop, unless the visitor prefers less motion. */}
-              {video && !REDUCE_MOTION ? (
+              {/* The video plays in the card, muted and on a loop, unless the
+                  visitor prefers less motion. It is only rendered once its tab
+                  is picked, so nothing downloads until then. */}
+              {playing && !REDUCE_MOTION ? (
                 <video
                   ref={playMuted}
                   src={video}
@@ -752,12 +818,6 @@ function ResultCard({
                 />
               ) : (
                 <img src={screenshot} alt="" className="fade-in block size-full object-cover object-top" />
-              )}
-              {video && (
-                <span className="video-tag" aria-hidden>
-                  <PlayIcon />
-                  Scroll video
-                </span>
               )}
             </button>
           ) : (
@@ -775,6 +835,32 @@ function ResultCard({
         )}
       </div>
     </article>
+  );
+}
+
+// The Screenshot and Video tabs of a result that has a video.
+function ViewToggle({
+  showVideo,
+  onChange,
+  label,
+  className = '',
+}: {
+  showVideo: boolean;
+  onChange: (showVideo: boolean) => void;
+  label: string;
+  className?: string;
+}) {
+  return (
+    <div className={`view-toggle ${className}`} role="group" aria-label={`View for ${label}`}>
+      <button type="button" aria-pressed={!showVideo} onClick={() => onChange(false)}>
+        <ImageIcon />
+        Screenshot
+      </button>
+      <button type="button" aria-pressed={showVideo} onClick={() => onChange(true)}>
+        <PlayIcon />
+        Video
+      </button>
+    </div>
   );
 }
 
@@ -797,6 +883,16 @@ function PlayIcon() {
   );
 }
 
+function ImageIcon() {
+  return (
+    <svg viewBox="0 0 16 16" className="size-4" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round" aria-hidden>
+      <rect x="2" y="3" width="12" height="10" rx="1.5" />
+      <path d="m2.5 11.5 3.5-3.5 2.5 2.5 2-2 3 3" />
+      <circle cx="10.5" cy="6" r="1" fill="currentColor" stroke="none" />
+    </svg>
+  );
+}
+
 function ChevronIcon({ flip }: { flip?: boolean }) {
   return (
     <svg viewBox="0 0 16 16" className={`size-4 ${flip ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
@@ -808,12 +904,22 @@ function ChevronIcon({ flip }: { flip?: boolean }) {
 // The enlarged view of one shot. With several, the arrows (or the arrow keys)
 // flip between countries in place, which is the easiest way to spot what
 // differs between them.
-function ScreenshotDialog({ shots, start, onClose }: { shots: Shot[]; start: number; onClose: () => void }) {
+function ScreenshotDialog({
+  shots,
+  start,
+  startOnVideo,
+  onClose,
+}: {
+  shots: Shot[];
+  start: number;
+  startOnVideo: boolean;
+  onClose: () => void;
+}) {
   const [index, setIndex] = useState(start);
   const { region, screenshot, responseTimeMs, video } = shots[index];
   const dialogRef = useRef<HTMLDialogElement>(null);
-  // A result with a video opens on the video: the visitor asked for it.
-  const [showVideo, setShowVideo] = useState(Boolean(shots[start].video));
+  // The view opens on the tab its card was showing.
+  const [showVideo, setShowVideo] = useState(startOnVideo);
 
   useEffect(() => {
     const dialog = dialogRef.current;
@@ -873,16 +979,7 @@ function ScreenshotDialog({ shots, start, onClose }: { shots: Shot[]; start: num
             Close
           </button>
         </header>
-        {video && (
-          <div className="view-toggle mx-4 mb-3" role="group" aria-label="View">
-            <button type="button" aria-pressed={!showVideo} onClick={() => setShowVideo(false)}>
-              Screenshot
-            </button>
-            <button type="button" aria-pressed={showVideo} onClick={() => setShowVideo(true)}>
-              Scroll video
-            </button>
-          </div>
-        )}
+        {video && <ViewToggle showVideo={showVideo} onChange={setShowVideo} label={region.label} className="mx-4 mb-3" />}
         <div className="min-h-0 overflow-auto">
           {video && showVideo ? (
             // Only rendered once the video view is open, so nothing downloads
