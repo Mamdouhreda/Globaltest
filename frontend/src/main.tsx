@@ -121,7 +121,7 @@ const EXAMPLES: Example[] = [
     videoFirst: ['germany', 'india'],
   },
   example('Yahoo', 'yahoo.com', '28 October 2026', [yahooUs, yahooBrazil, yahooGermany, yahooIndia], [1913, 3422, 2368, 2025], [yahooUsVideo, yahooBrazilVideo, yahooGermanyVideo, yahooIndiaVideo]),
-  example('Facebook', 'facebook.com', '28 October 2026', [facebookUs, facebookBrazil, facebookGermany, facebookIndia], [1042, 1159, 1011, 1127]),
+  example('Facebook', 'facebook.com', '28 October 2026', [facebookUs, facebookBrazil, facebookGermany, facebookIndia], [1042, 1159, 1011, 1497]),
 ];
 
 const POLL_INTERVAL_MS = 3000;
