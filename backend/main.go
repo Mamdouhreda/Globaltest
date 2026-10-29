@@ -97,8 +97,20 @@ func receiveURL(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	target, err := parseWebURL(request.URL)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	// Local tests may open localhost, for testing against a local site.
 	if request.Region == "" || request.Region == "local" {
 		receiveURLLocal(w, request.URL, request.Video)
+		return
+	}
+
+	if err := checkPublicHost(r.Context(), target.Hostname()); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
 

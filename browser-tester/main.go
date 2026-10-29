@@ -100,13 +100,29 @@ type captureResult struct {
 // adds an explicit no-sandbox allocator (Chromium refuses to launch as root
 // without it) and relies on the caller-supplied context deadline instead of
 // running unbounded, since a hung page on Fargate would otherwise bill
-// indefinitely.
+// indefinitely. All of Chromium's traffic goes through the proxy in proxy.go,
+// so it can only reach public addresses.
 func captureSite(ctx context.Context, siteURL string, recordVideo bool) (captureResult, error) {
+	if err := checkTargetURL(ctx, siteURL); err != nil {
+		return captureResult{}, err
+	}
+
+	proxyAddr, stopProxy, err := startPublicProxy()
+	if err != nil {
+		return captureResult{}, fmt.Errorf("start proxy: %w", err)
+	}
+	defer stopProxy()
+
 	allocCtx, allocCancel := chromedp.NewExecAllocator(ctx, append(
 		chromedp.DefaultExecAllocatorOptions[:],
 		chromedp.NoSandbox,
 		chromedp.Flag("disable-gpu", true),
 		chromedp.Flag("mute-audio", true),
+		chromedp.ProxyServer("http://"+proxyAddr),
+		// Chromium skips the proxy for localhost unless told otherwise.
+		chromedp.Flag("proxy-bypass-list", "<-loopback>"),
+		// WebRTC's UDP doesn't go through an http proxy at all.
+		chromedp.Flag("force-webrtc-ip-handling-policy", "disable_non_proxied_udp"),
 		// The scroll video records the window, not the emulated viewport,
 		// so the window must match it.
 		chromedp.WindowSize(1280, 720),

@@ -4,7 +4,7 @@ FROM golang:1.26-bookworm AS builder
 WORKDIR /src
 COPY go.mod go.sum ./
 RUN go mod download
-COPY main.go ./
+COPY *.go ./
 RUN CGO_ENABLED=0 go build -ldflags="-s -w" -o /browser-tester .
 
 # ...then run it on top of a minimal Chromium image instead of the full

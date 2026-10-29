@@ -130,12 +130,17 @@ const POLL_TIMEOUT_MS = 120_000;
 // An error whose message is written for the user and safe to show as-is.
 class TestError extends Error {}
 
-async function request(input: string, failure: string, init?: RequestInit): Promise<Response> {
+// `rejected`, if given, is the message for a 400: the service refused the
+// request itself, so trying again won't help.
+async function request(input: string, failure: string, init?: RequestInit, rejected?: string): Promise<Response> {
   let response: Response;
   try {
     response = await fetch(input, init);
   } catch {
     throw new TestError("Couldn't reach the test service. Check your connection and try again.");
+  }
+  if (response.status === 400 && rejected) {
+    throw new TestError(rejected);
   }
   if (!response.ok) {
     console.error(await response.text());
@@ -163,8 +168,11 @@ function describeSiteError(error: string | undefined): string {
   if (!error) {
     return "The site couldn't be loaded from here.";
   }
-  if (error.includes('ERR_NAME_NOT_RESOLVED')) {
+  if (/ERR_NAME_NOT_RESOLVED|no such host/.test(error)) {
     return "This address doesn't exist. Check the spelling.";
+  }
+  if (error.includes('not a public internet address')) {
+    return 'Only public websites can be tested.';
   }
   if (/deadline exceeded|TIMED_OUT/.test(error)) {
     return 'The site took too long to respond from here.';
@@ -172,7 +180,7 @@ function describeSiteError(error: string | undefined): string {
   if (/ERR_CERT|ERR_SSL/.test(error)) {
     return "The site's security certificate was rejected.";
   }
-  if (/ERR_CONNECTION|ERR_ADDRESS_UNREACHABLE/.test(error)) {
+  if (/ERR_CONNECTION|ERR_ADDRESS_UNREACHABLE|ERR_TUNNEL_CONNECTION_FAILED|ERR_EMPTY_RESPONSE/.test(error)) {
     return 'The connection to the site failed from here.';
   }
   return "The site couldn't be loaded from here.";
@@ -189,7 +197,7 @@ async function runTest(url: string, region: string, video: boolean): Promise<Reg
       'Content-Type': 'application/json',
     },
     body: JSON.stringify({ url, region, video }),
-  });
+  }, 'Only public websites can be tested.');
 
   const data = (await response.json()) as UrlResponse;
 
