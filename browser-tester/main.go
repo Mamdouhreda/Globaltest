@@ -124,8 +124,9 @@ func captureSite(ctx context.Context, siteURL string, recordVideo bool) (capture
 		// WebRTC's UDP doesn't go through an http proxy at all.
 		chromedp.Flag("force-webrtc-ip-handling-policy", "disable_non_proxied_udp"),
 		// The scroll video records the window, not the emulated viewport,
-		// so the window must match it.
+		// so the window must match it, at the same 2x scale.
 		chromedp.WindowSize(1280, 720),
+		chromedp.Flag("force-device-scale-factor", "2"),
 	)...)
 	defer allocCancel()
 
@@ -136,7 +137,7 @@ func captureSite(ctx context.Context, siteURL string, recordVideo bool) (capture
 	start := time.Now()
 
 	if err := chromedp.Run(taskCtx,
-		chromedp.EmulateViewport(1280, 720),
+		chromedp.EmulateViewport(1280, 720, chromedp.EmulateScale(2)),
 		chromedp.Navigate(siteURL),
 		chromedp.WaitReady("body", chromedp.ByQuery),
 		chromedp.CaptureScreenshot(&screenshot),
@@ -232,9 +233,9 @@ func recordScroll(ctx context.Context) ([]byte, error) {
 	if err := chromedp.Run(ctx,
 		page.StartScreencast().
 			WithFormat(page.ScreencastFormatJpeg).
-			WithQuality(70).
-			WithMaxWidth(960).
-			WithMaxHeight(540),
+			WithQuality(90).
+			WithMaxWidth(1920).
+			WithMaxHeight(1080),
 		chromedp.Evaluate(scrollScript, &done, func(p *runtime.EvaluateParams) *runtime.EvaluateParams {
 			return p.WithAwaitPromise(true)
 		}),
@@ -302,7 +303,7 @@ func encodeMP4(ctx context.Context, frames []screencastFrame, ended time.Time) (
 	cmd := exec.CommandContext(ctx, "ffmpeg", "-hide_banner", "-loglevel", "error",
 		"-framerate", strconv.Itoa(videoFPS), "-i", filepath.Join(dir, "frame-%05d.jpg"),
 		"-vf", "scale=trunc(iw/2)*2:trunc(ih/2)*2",
-		"-c:v", "libx264", "-preset", "veryfast", "-crf", "32",
+		"-c:v", "libx264", "-preset", "fast", "-crf", "22",
 		"-pix_fmt", "yuv420p", "-movflags", "+faststart",
 		out,
 	)

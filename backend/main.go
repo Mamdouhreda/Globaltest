@@ -1,7 +1,6 @@
 package main
 
 import (
-	"bytes"
 	"context"
 	"crypto/rand"
 	"encoding/base64"
@@ -187,16 +186,16 @@ type resultResponse struct {
 	URL            string `json:"url,omitempty"`
 	ResponseTimeMs int64  `json:"responseTimeMs,omitempty"`
 	Error          string `json:"error,omitempty"`
-	Screenshot     string `json:"screenshot,omitempty"`
 	HasVideo       bool   `json:"hasVideo,omitempty"`
-	// Video is a presigned S3 link to the scroll recording. It is a link
-	// rather than inline base64 because Lambda responses are capped at 6MB.
-	Video string `json:"video,omitempty"`
+	// Screenshot and Video are presigned S3 links. They are links rather
+	// than inline base64 because Lambda responses are capped at 6MB.
+	Screenshot string `json:"screenshot,omitempty"`
+	Video      string `json:"video,omitempty"`
 }
 
 // receiveResult reports the outcome of a Fargate test by reading the result
-// JSON (and screenshot, and a link to the scroll video) the browser-tester
-// task wrote to S3. A missing object just means the task hasn't finished yet.
+// JSON (and links to the screenshot and scroll video) the browser-tester task
+// wrote to S3. A missing object just means the task hasn't finished yet.
 func receiveResult(w http.ResponseWriter, r *http.Request) {
 	id := r.URL.Query().Get("id")
 	if !testIDPattern.MatchString(id) {
@@ -235,26 +234,21 @@ func receiveResult(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	presign := s3.NewPresignClient(client)
 	if res.Status == "ok" {
-		png, err := client.GetObject(ctx, &s3.GetObjectInput{
+		screenshot, err := presign.PresignGetObject(ctx, &s3.GetObjectInput{
 			Bucket: aws.String(bucket),
 			Key:    aws.String("results/" + id + ".png"),
-		})
+		}, s3.WithPresignExpires(time.Hour))
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusBadGateway)
 			return
 		}
-		defer png.Body.Close()
-		var buf bytes.Buffer
-		if _, err := buf.ReadFrom(png.Body); err != nil {
-			http.Error(w, err.Error(), http.StatusBadGateway)
-			return
-		}
-		res.Screenshot = "data:image/png;base64," + base64.StdEncoding.EncodeToString(buf.Bytes())
+		res.Screenshot = screenshot.URL
 	}
 
 	if res.HasVideo {
-		video, err := s3.NewPresignClient(client).PresignGetObject(ctx, &s3.GetObjectInput{
+		video, err := presign.PresignGetObject(ctx, &s3.GetObjectInput{
 			Bucket: aws.String(bucket),
 			Key:    aws.String("results/" + id + ".mp4"),
 		}, s3.WithPresignExpires(time.Hour))
@@ -283,6 +277,7 @@ func captureSite(siteURL string, recordVideo bool) (captureResult, error) {
 	allocCtx, allocCancel := chromedp.NewExecAllocator(context.Background(), append(
 		chromedp.DefaultExecAllocatorOptions[:],
 		chromedp.WindowSize(1280, 720),
+		chromedp.Flag("force-device-scale-factor", "2"),
 	)...)
 	defer allocCancel()
 
@@ -294,7 +289,7 @@ func captureSite(siteURL string, recordVideo bool) (captureResult, error) {
 	// wait for the page to load and capture the screenshot
 
 	if err := chromedp.Run(ctx,
-		chromedp.EmulateViewport(1280, 720),
+		chromedp.EmulateViewport(1280, 720, chromedp.EmulateScale(2)),
 		chromedp.Navigate(siteURL),
 		chromedp.WaitReady("body", chromedp.ByQuery),
 		chromedp.CaptureScreenshot(&screenshot),
