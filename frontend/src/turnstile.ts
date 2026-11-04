@@ -32,12 +32,11 @@ function loadScript(): Promise<Turnstile> {
   return script;
 }
 
-async function issueToken(): Promise<string> {
+async function issueToken(parent: HTMLElement): Promise<string> {
   const turnstile = await loadScript();
   return new Promise((resolve, reject) => {
     const container = document.createElement('div');
-    container.className = 'turnstile-box';
-    document.body.append(container);
+    parent.append(container);
 
     let widgetId = '';
     const finish = (settle: () => void) => {
@@ -46,9 +45,11 @@ async function issueToken(): Promise<string> {
       settle();
     };
     // Stays invisible unless Cloudflare needs the visitor to click something.
+    // The test can be started from further down the page, so bring it to them.
     widgetId = turnstile.render(container, {
       sitekey: SITE_KEY,
       appearance: 'interaction-only',
+      'before-interactive-callback': () => parent.scrollIntoView({ behavior: 'smooth', block: 'center' }),
       callback: (token: string) => finish(() => resolve(token)),
       'error-callback': () => finish(() => reject(new Error('Turnstile failed'))),
       'timeout-callback': () => finish(() => reject(new Error('Turnstile timed out'))),
@@ -56,6 +57,7 @@ async function issueToken(): Promise<string> {
   });
 }
 
-export async function getTurnstileToken(): Promise<string | undefined> {
-  return SITE_KEY ? issueToken() : undefined;
+// Shows the check inside `parent`, if Cloudflare needs one shown at all.
+export async function getTurnstileToken(parent: HTMLElement): Promise<string | undefined> {
+  return SITE_KEY ? issueToken(parent) : undefined;
 }

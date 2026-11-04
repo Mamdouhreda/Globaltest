@@ -219,10 +219,10 @@ function describeSiteError(error: string | undefined): string {
 // The backend's pass lasts 10 minutes; stop using it a little before that.
 const BOT_PASS_LIFETIME_MS = 9 * 60_000;
 
-async function fetchBotPass(): Promise<string | undefined> {
+async function fetchBotPass(checkArea: HTMLElement): Promise<string | undefined> {
   let token: string | undefined;
   try {
-    token = await getTurnstileToken();
+    token = await getTurnstileToken(checkArea);
   } catch {
     throw new TestError("The bot check couldn't run. Refresh the page and try again.");
   }
@@ -241,12 +241,12 @@ async function fetchBotPass(): Promise<string | undefined> {
 
 let botPass: { value: Promise<string | undefined>; expiresAt: number } | undefined;
 
-// Every country in a run shares this promise, so a visitor does the bot check
-// once, not once per country. A failed check isn't kept, so the next run can
+// A visitor does the bot check once, and every country in the run and any run
+// soon after uses the same pass. A failed check isn't kept, so the next run can
 // try again.
-function getBotPass(): Promise<string | undefined> {
+function getBotPass(checkArea: HTMLElement): Promise<string | undefined> {
   if (!botPass || Date.now() >= botPass.expiresAt) {
-    const value = fetchBotPass();
+    const value = fetchBotPass(checkArea);
     const current = { value, expiresAt: Date.now() + BOT_PASS_LIFETIME_MS };
     botPass = current;
     value.catch(() => {
@@ -262,9 +262,7 @@ function getBotPass(): Promise<string | undefined> {
 // video. Regional
 // tests start a Fargate task and are polled; the local test returns its
 // results directly.
-async function runTest(url: string, region: string, video: boolean): Promise<RegionResult> {
-  const turnstile = await getBotPass();
-
+async function runTest(url: string, region: string, video: boolean, turnstile: string | undefined): Promise<RegionResult> {
   const response = await request(`${API_URL}/url`, "Couldn't start a browser here. Try again in a moment.", {
     method: 'POST',
     headers: {
@@ -760,6 +758,9 @@ function PauseIcon() {
 function App() {
   const [url, setUrl] = useState('');
   const [urlError, setUrlError] = useState('');
+  const [checking, setChecking] = useState(false);
+  const [checkError, setCheckError] = useState('');
+  const checkAreaRef = useRef<HTMLDivElement>(null);
   const [selected, setSelected] = useState<string[]>(STARTING_COUNTRIES);
   const [testedUrl, setTestedUrl] = useState('');
   // A scroll video adds time and cost, so tests take a screenshot only unless
@@ -776,7 +777,7 @@ function App() {
   const urlErrorId = useId();
   const countryErrorId = useId();
 
-  const isSubmitting = Object.values(results).some((result) => result.state === 'running');
+  const isSubmitting = checking || Object.values(results).some((result) => result.state === 'running');
 
   useEffect(() => {
     function onKeyDown(event: KeyboardEvent) {
@@ -799,10 +800,27 @@ function App() {
     setResults((current) => ({ ...current, [region]: result }));
   }
 
-  async function runRegion(region: string, target: string, video: boolean) {
+  // Returns the bot pass, or null if the check failed and said why on the form.
+  async function passBotCheck(): Promise<string | undefined | null> {
+    setCheckError('');
+    setChecking(true);
+    try {
+      return await getBotPass(checkAreaRef.current!);
+    } catch (error) {
+      if (!(error instanceof TestError)) {
+        console.error(error);
+      }
+      setCheckError(error instanceof TestError ? error.message : 'Something went wrong. Try again.');
+      return null;
+    } finally {
+      setChecking(false);
+    }
+  }
+
+  async function runRegion(region: string, target: string, video: boolean, pass: string | undefined) {
     setResult(region, { state: 'running', startedAt: Date.now() });
     try {
-      setResult(region, await runTest(target, region, video));
+      setResult(region, await runTest(target, region, video, pass));
     } catch (error) {
       if (!(error instanceof TestError)) {
         console.error(error);
@@ -814,13 +832,27 @@ function App() {
     }
   }
 
+  async function retryRegion(region: string) {
+    const pass = await passBotCheck();
+    if (pass !== null) {
+      await runRegion(region, testedUrl, testedVideo, pass);
+    }
+  }
+
   async function startTest(target: string, regions: string[], video: boolean) {
+    setResults({});
+
+    // Nothing is sent, and no card or timer shows, until the check has passed.
+    const pass = await passBotCheck();
+    if (pass === null) {
+      return;
+    }
+
     setTestedUrl(target);
     setTestedVideo(video);
-    setResults({});
     requestAnimationFrame(() => resultsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' }));
 
-    await Promise.all(regions.map((region) => runRegion(region, target, video)));
+    await Promise.all(regions.map((region) => runRegion(region, target, video, pass)));
   }
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
@@ -944,7 +976,7 @@ function App() {
               <button type="submit" disabled={isSubmitting} className="primary-button">
                 {isSubmitting && <span className="spinner" aria-hidden />}
                 {isSubmitting ? (
-                  'Testing…'
+                  checking ? 'Checking…' : 'Testing…'
                 ) : (
                   <span>
                     Test
@@ -964,6 +996,18 @@ function App() {
               </p>
             )}
           </div>
+
+          {checking && (
+            <p role="status" className="text-sm font-medium text-slate-700">
+              Checking you're human before starting the test…
+            </p>
+          )}
+          <div ref={checkAreaRef} className="flex justify-center empty:hidden" />
+          {checkError && (
+            <p role="alert" className="text-sm font-medium text-rose-700">
+              {checkError}
+            </p>
+          )}
 
           <CountryPicker
             selected={selected}
@@ -1002,7 +1046,7 @@ function App() {
                 key={region.value}
                 region={region}
                 result={results[region.value]}
-                onRetry={() => runRegion(region.value, testedUrl, testedVideo)}
+                onRetry={() => retryRegion(region.value)}
                 onZoom={(shot, showVideo) => zoom(resultShots, shot, showVideo)}
               />
             ))}
