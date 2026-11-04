@@ -7,13 +7,13 @@ variable "project_name" {
 variable "rate_limit_per_ip" {
   description = "Tests one IP address may start per day. Each country in a run is one test."
   type        = number
-  default     = 5
+  default     = 15
 }
 
 variable "rate_limit_per_range" {
   description = "Tests one network range (IPv4 /24, IPv6 /48) may start per day."
   type        = number
-  default     = 20
+  default     = 60
 }
 
 variable "rate_limit_global" {
