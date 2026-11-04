@@ -1,0 +1,94 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Pricing — GlobalTest</title>
+    <meta
+      name="description"
+      content="GlobalTest plans: free with 4 countries, Pro at $15 a month for all 27 in-country locations and videos, and Team at $45 a month for agencies."
+    />
+    <meta name="robots" content="index, follow" />
+    <meta name="theme-color" content="#fe4e2b" />
+
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  </head>
+  <body>
+    <div id="root"></div>
+    <noscript>
+      <p>Enable JavaScript to see the plans.</p>
+    </noscript>
+
+    <div class="guide">
+      <section>
+        <h2>Compare every plan</h2>
+        <div class="compare reveal">
+          <table>
+            <thead>
+              <tr>
+                <th scope="col"><span class="sr-only">Feature</span></th>
+                <th scope="col">Free</th>
+                <th scope="col" class="is-popular">Pro</th>
+                <th scope="col">Team</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr class="group"><th scope="rowgroup" colspan="4">Testing</th></tr>
+              <tr><th scope="row">In-country locations</th><td>4</td><td class="is-popular">27</td><td>27</td></tr>
+              <tr><th scope="row">Tests</th><td>5 a day</td><td class="is-popular">300 a month</td><td>1,500 a month</td></tr>
+              <tr><th scope="row">Proxy tests in 190+ more countries</th><td>—</td><td class="is-popular">30 a month</td><td>100 a month</td></tr>
+              <tr><th scope="row">Tests at the same time</th><td>1</td><td class="is-popular">3</td><td>10</td></tr>
+              <tr class="group"><th scope="rowgroup" colspan="4">Results</th></tr>
+              <tr><th scope="row">Screenshot and load time</th><td>✓</td><td class="is-popular">✓</td><td>✓</td></tr>
+              <tr><th scope="row">Scrolling page video</th><td>—</td><td class="is-popular">✓</td><td>✓</td></tr>
+              <tr><th scope="row">Results kept for</th><td>1 day</td><td class="is-popular">30 days</td><td>90 days</td></tr>
+              <tr class="group"><th scope="rowgroup" colspan="4">Account</th></tr>
+              <tr><th scope="row">Team members</th><td>1</td><td class="is-popular">1</td><td>5</td></tr>
+              <tr><th scope="row">API access</th><td>—</td><td class="is-popular">—</td><td>✓</td></tr>
+              <tr><th scope="row">Price</th><td>$0</td><td class="is-popular">$15 a month</td><td>$45 a month</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section>
+        <h2>Frequently asked questions</h2>
+        <div class="faq">
+          <div class="faq-item reveal">
+            <h3>What is the difference between an in-country test and a proxy test?</h3>
+            <div class="faq-answer"><p>An in-country test starts a real Chrome browser in a data centre inside the country, so the load time is what a visitor there would see. For countries without a data centre, the browser runs in the nearest one and reaches your site through an address in the country. The page looks the same as it does to a local visitor, but the load time includes the extra hop, so we mark those results “via proxy”.</p></div>
+          </div>
+          <div class="faq-item reveal">
+            <h3>Is the free plan really free?</h3>
+            <div class="faq-answer"><p>Yes. Sign in with Google and test from 4 countries, 5 times a day. You don't need a card.</p></div>
+          </div>
+          <div class="faq-item reveal">
+            <h3>What happens if I run out of tests?</h3>
+            <div class="faq-answer"><p>New tests wait until your allowance resets at the start of your next billing month. On a paid plan you can add 25 proxy tests for $10 at any time, or move up to Team.</p></div>
+          </div>
+          <div class="faq-item reveal">
+            <h3>Can I change or cancel my plan?</h3>
+            <div class="faq-answer"><p>Yes, at any time from your account. Moving up takes effect straight away; moving down or cancelling takes effect at the end of the period you've paid for.</p></div>
+          </div>
+          <div class="faq-item reveal">
+            <h3>How do I pay?</h3>
+            <div class="faq-answer"><p>By card through Stripe. Annual plans are paid once a year and cost 20% less than paying monthly.</p></div>
+          </div>
+        </div>
+      </section>
+
+      <section class="guide-intro reveal">
+        <h2>See your site the way the world does</h2>
+        <p>Run your first test from 4 countries for free, in under a minute.</p>
+        <p><a href="/" class="intro-cta">Start testing free</a></p>
+      </section>
+
+      <footer>
+        <p>Prices are in US dollars and don't include sales tax or VAT where it applies.</p>
+      </footer>
+    </div>
+    <script type="module" src="/src/pricing.tsx"></script>
+  </body>
+</html>
