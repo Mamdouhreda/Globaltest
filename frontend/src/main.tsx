@@ -5,23 +5,24 @@ import facebookBrazil from './assets/example-facebook-brazil.png';
 import facebookGermany from './assets/example-facebook-germany.png';
 import facebookIndia from './assets/example-facebook-india.png';
 import facebookUs from './assets/example-facebook-us.png';
-import msnBrazil from './assets/example-msn-brazil.jpg';
+import msnBrazil from './assets/example-msn-brazil.png';
 import msnBrazilVideo from './assets/example-msn-brazil.mp4';
-import msnGermany from './assets/example-msn-germany.jpg';
+import msnGermany from './assets/example-msn-germany.png';
 import msnGermanyVideo from './assets/example-msn-germany.mp4';
-import msnIndia from './assets/example-msn-india.jpg';
+import msnIndia from './assets/example-msn-india.png';
 import msnIndiaVideo from './assets/example-msn-india.mp4';
-import msnUs from './assets/example-msn-us.jpg';
+import msnUs from './assets/example-msn-us.png';
 import msnUsVideo from './assets/example-msn-us.mp4';
-import yahooBrazil from './assets/example-yahoo-brazil.jpg';
+import yahooBrazil from './assets/example-yahoo-brazil.png';
 import yahooBrazilVideo from './assets/example-yahoo-brazil.mp4';
-import yahooGermany from './assets/example-yahoo-germany.jpg';
+import yahooGermany from './assets/example-yahoo-germany.png';
 import yahooGermanyVideo from './assets/example-yahoo-germany.mp4';
-import yahooIndia from './assets/example-yahoo-india.jpg';
+import yahooIndia from './assets/example-yahoo-india.png';
 import yahooIndiaVideo from './assets/example-yahoo-india.mp4';
-import yahooUs from './assets/example-yahoo-us.jpg';
+import yahooUs from './assets/example-yahoo-us.png';
 import yahooUsVideo from './assets/example-yahoo-us.mp4';
 import './guide';
+import { Logo } from './logo';
 import './styles.css';
 
 const API_URL = import.meta.env.VITE_API_URL ?? 'http://127.0.0.1:8080';
@@ -79,8 +80,7 @@ const REGIONS: Region[] = [
 
 type Shot = { region: Region; screenshot: string; responseTimeMs?: number; video?: string };
 
-// videoFirst lists the countries whose cards open on their video tab.
-type Example = { name: string; url: string; date: string; shots: Shot[]; videoFirst?: string[] };
+type Example = { name: string; url: string; date: string; shots: Shot[] };
 
 // The countries a first visit starts with, and the ones the examples show:
 // the United States, Brazil, Germany and India.
@@ -112,16 +112,11 @@ function example(
 // Real results from tests run on the given dates, shown until the visitor
 // runs a test of their own, in the order of STARTING_COUNTRIES. MSN and Yahoo
 // change language and news by country and their pages scroll, so every
-// result has a scroll video; Facebook fits on one screen. MSN, shown first,
-// plays two of its videos straight away beside two screenshots, to show
-// both.
+// result has a scroll video; Facebook fits on one screen.
 const EXAMPLES: Example[] = [
-  {
-    ...example('MSN', 'msn.com', '28 October 2026', [msnUs, msnBrazil, msnGermany, msnIndia], [10978, 6255, 9588, 6945], [msnUsVideo, msnBrazilVideo, msnGermanyVideo, msnIndiaVideo]),
-    videoFirst: ['germany', 'india'],
-  },
-  example('Yahoo', 'yahoo.com', '28 October 2026', [yahooUs, yahooBrazil, yahooGermany, yahooIndia], [1913, 3422, 2368, 2025], [yahooUsVideo, yahooBrazilVideo, yahooGermanyVideo, yahooIndiaVideo]),
-  example('Facebook', 'facebook.com', '28 October 2026', [facebookUs, facebookBrazil, facebookGermany, facebookIndia], [1042, 1159, 1011, 1497]),
+  example('MSN', 'msn.com', '4 November 2026', [msnUs, msnBrazil, msnGermany, msnIndia], [6903, 1527, 1233, 1241], [msnUsVideo, msnBrazilVideo, msnGermanyVideo, msnIndiaVideo]),
+  example('Yahoo', 'yahoo.com', '4 November 2026', [yahooUs, yahooBrazil, yahooGermany, yahooIndia], [1361, 4418, 2113, 2343], [yahooUsVideo, yahooBrazilVideo, yahooGermanyVideo, yahooIndiaVideo]),
+  example('Facebook', 'facebook.com', '4 November 2026', [facebookUs, facebookBrazil, facebookGermany, facebookIndia], [1364, 1687, 1035, 2730]),
 ];
 
 const POLL_INTERVAL_MS = 3000;
@@ -249,40 +244,8 @@ function useElapsed(startedAt: number): number {
   return Math.max(0, now - startedAt);
 }
 
-// The logo: a row of overlapping checkpoints like the ones on the map, each a
-// country's flag in a circle on a stem above its city dot
+// The countries whose flags make up the logo
 const LOGO_REGIONS = ['us', 'germany', 'india', 'brazil'];
-
-function Logo() {
-  const regions = LOGO_REGIONS.flatMap((value) => REGIONS.filter((region) => region.value === value));
-  const step = 15;
-  return (
-    <svg viewBox={`0 0 ${24 + step * (regions.length - 1)} 38`} className="h-10 w-auto shrink-0" aria-hidden>
-      <defs>
-        <clipPath id="logo-head">
-          <circle cx="12" cy="12" r="11" />
-        </clipPath>
-      </defs>
-      {regions.map((region, index) => (
-        <g key={region.value} transform={`translate(${index * step})`}>
-          <path d="M12 22v11" stroke="#fff" strokeWidth="2" />
-          <circle cx="12" cy="34" r="3" fill="#fff" />
-          <g clipPath="url(#logo-head)">
-            {React.cloneElement(region.flag as React.ReactElement<React.SVGProps<SVGSVGElement>>, {
-              x: -2,
-              y: 1,
-              width: 28,
-              height: 22,
-              className: undefined,
-              preserveAspectRatio: 'none',
-            })}
-          </g>
-          <circle cx="12" cy="12" r="11" fill="none" stroke="#fff" strokeWidth="2" />
-        </g>
-      ))}
-    </svg>
-  );
-}
 
 function SearchIcon() {
   return (
@@ -414,6 +377,112 @@ function CountryMap({ selected }: { selected: string[] }) {
           ),
       )}
     </div>
+  );
+}
+
+// How long an example shows each country before moving to the next.
+const SHOWCASE_MS = 6000;
+
+// A browser window playing one real example, moving through its countries to
+// show the same address giving a different page in each. A visitor can pick a
+// country, pause, or open the page larger, which holds it on that country. With
+// reduced motion it starts paused, on the screenshot.
+function ExampleShowcase({
+  example,
+  hold,
+  onZoom,
+}: {
+  example: Example;
+  hold: boolean;
+  onZoom: (shot: Shot, showVideo: boolean) => void;
+}) {
+  const [index, setIndex] = useState(0);
+  const [paused, setPaused] = useState(REDUCE_MOTION);
+  const shot = example.shots[index];
+  const playing = Boolean(shot.video && !paused);
+
+  useEffect(() => {
+    if (paused || hold) {
+      return;
+    }
+    const timer = window.setTimeout(() => setIndex((index + 1) % example.shots.length), SHOWCASE_MS);
+    return () => window.clearTimeout(timer);
+  }, [index, paused, hold, example.shots.length]);
+
+  return (
+    <figure className="showcase">
+      <div className="showcase-window">
+        <div className="showcase-bar">
+          <span className="showcase-lights" aria-hidden>
+            <i />
+            <i />
+            <i />
+          </span>
+          <span className="showcase-address">{example.url}</span>
+        </div>
+        <div className="showcase-screen">
+          <button
+            type="button"
+            onClick={() => onZoom(shot, playing)}
+            aria-label={`Enlarge ${example.url} from ${shot.region.label}`}
+            className="block size-full cursor-zoom-in"
+          >
+            {playing ? (
+              <video
+                key={shot.region.value}
+                ref={playMuted}
+                src={shot.video}
+                poster={shot.screenshot}
+                loop
+                playsInline
+                className="fade-in block size-full object-cover object-top"
+              />
+            ) : (
+              <img key={shot.region.value} src={shot.screenshot} alt="" className="fade-in block size-full object-cover object-top" />
+            )}
+          </button>
+          <p className="showcase-badge">
+            <span aria-hidden>{shot.region.flag}</span>
+            <span>
+              <strong>Seen from {shot.region.label}</strong>
+              {shot.responseTimeMs !== undefined && <span className="block">Loaded in {formatTime(shot.responseTimeMs)}</span>}
+            </span>
+          </p>
+        </div>
+      </div>
+      <div className="showcase-tabs">
+        {example.shots.map((item, itemIndex) => (
+          <button
+            key={item.region.value}
+            type="button"
+            onClick={() => setIndex(itemIndex)}
+            aria-pressed={itemIndex === index}
+            aria-label={`Show ${example.url} from ${item.region.label}`}
+            className={`showcase-tab ${itemIndex === index ? 'is-active' : ''} ${paused ? 'is-paused' : ''}`}
+            style={{ '--showcase-ms': `${SHOWCASE_MS}ms` } as React.CSSProperties}
+          >
+            <span aria-hidden>{item.region.flag}</span>
+            <span className="hidden sm:inline">{item.region.label}</span>
+          </button>
+        ))}
+        <button
+          type="button"
+          onClick={() => setPaused(!paused)}
+          aria-label={paused ? 'Play the example' : 'Pause the example'}
+          className="showcase-pause"
+        >
+          {paused ? <PlayIcon /> : <PauseIcon />}
+        </button>
+      </div>
+    </figure>
+  );
+}
+
+function PauseIcon() {
+  return (
+    <svg viewBox="0 0 16 16" className="size-4" fill="currentColor" aria-hidden>
+      <path d="M4.5 3h2.2v10H4.5zM9.3 3h2.2v10H9.3z" />
+    </svg>
   );
 }
 
@@ -552,9 +621,9 @@ function App() {
   return (
     <main className="relative px-4 pb-12 pt-4 text-slate-800">
       <div className="pointer-events-none absolute inset-0 overflow-hidden" aria-hidden>
-        <div className="glow glow-green" />
-        <div className="glow glow-mint" />
-        <div className="glow glow-lime" />
+        <div className="glow glow-red" />
+        <div className="glow glow-rose" />
+        <div className="glow glow-peach" />
       </div>
 
       {/* A faded map behind the hero, with a lit dot for each chosen country.
@@ -564,13 +633,13 @@ function App() {
       </div>
 
       <div className="relative mx-auto flex max-w-6xl items-center gap-2.5">
-        <Logo />
-        <p className="text-lg font-bold tracking-tight text-[#0D3233]">GlobalTest</p>
+        <Logo flags={LOGO_REGIONS.flatMap((value) => REGIONS.filter((region) => region.value === value).map((region) => region.flag))} />
+        <p className="text-lg font-bold tracking-tight text-[#3a1408]">GlobalTest</p>
       </div>
 
       <div className="relative mx-auto mt-6 flex max-w-4xl flex-col items-center text-center sm:mt-8">
-        <h1 className="text-balance text-3xl font-bold tracking-tight text-[#0D3233] sm:text-[36px] lg:whitespace-nowrap lg:text-[40px]">
-          See how your site looks and loads in any country
+        <h1 className="text-balance text-3xl font-bold tracking-tight text-[#3a1408] sm:text-[36px] lg:whitespace-nowrap lg:text-[40px]">
+          See your website from any location
         </h1>
         <p className="mt-3 max-w-3xl text-base text-slate-700 sm:text-lg">
           Real Chrome browsers open your site in the countries you pick. You get a screenshot and the load time
@@ -696,7 +765,7 @@ function App() {
             </h2>
             <p className="text-sm text-slate-700">
               Real results for {shown.url} from {shown.date}. Compare the language, the news and the cookie
-              banner in each country. Open one, then flip between countries with the arrows.
+              banner in each country. Select the page to see it larger.
             </p>
             <button
               type="button"
@@ -712,18 +781,7 @@ function App() {
               Run this test
             </button>
           </div>
-          <div className="results-grid">
-            {shown.shots.map((shot) => (
-              <ResultCard
-                key={shown.url + shot.region.value}
-                region={shot.region}
-                result={{ state: 'ok', responseTimeMs: shot.responseTimeMs, screenshot: shot.screenshot, video: shot.video }}
-                onRetry={() => {}}
-                startOnVideo={shown.videoFirst?.includes(shot.region.value)}
-                onZoom={(shot, showVideo) => zoom(shown.shots, shot, showVideo)}
-              />
-            ))}
-          </div>
+          <ExampleShowcase key={shown.url} example={shown} hold={zoomed !== null} onZoom={(shot, showVideo) => zoom(shown.shots, shot, showVideo)} />
         </section>
       )}
 
@@ -773,19 +831,16 @@ function ResultCard({
   result,
   onRetry,
   onZoom,
-  startOnVideo = false,
 }: {
   region: Region;
   result: RegionResult;
   onRetry: () => void;
   onZoom: (shot: Shot, showVideo: boolean) => void;
-  startOnVideo?: boolean;
 }) {
   const { screenshot, responseTimeMs, video } = result.state === 'ok' ? result : {};
   // A result with a video has tabs to swap between it and the screenshot.
-  // The screenshot shows first unless the card starts on the video; the
-  // video plays once its tab is picked.
-  const [showVideo, setShowVideo] = useState(startOnVideo);
+  // The screenshot shows first; the video plays once its tab is picked.
+  const [showVideo, setShowVideo] = useState(false);
   const playing = Boolean(video && showVideo);
 
   return (

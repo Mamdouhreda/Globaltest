@@ -3,7 +3,7 @@
 @layer base {
   :root {
     color: #17202a;
-    background: #e6f7ec;
+    background: #ffefeb;
     font-family:
       "Plus Jakarta Sans", Inter, ui-sans-serif, system-ui, -apple-system,
       BlinkMacSystemFont, "Segoe UI", sans-serif;
@@ -12,17 +12,17 @@
   body {
     margin: 0;
   }
-  /* A thin green line edged in off-white closes the page at the top and
+  /* A thin red line edged in off-white closes the page at the top and
      the bottom */
   body::before,
   body::after {
     content: "";
     display: block;
     height: 6px;
-    background: linear-gradient(#15803d 4px, #fafaf5 4px);
+    background: linear-gradient(#fe4e2b 4px, #fafaf5 4px);
   }
   body::after {
-    background: linear-gradient(#fafaf5 2px, #15803d 2px);
+    background: linear-gradient(#fafaf5 2px, #fe4e2b 2px);
   }
 
   button {
@@ -34,40 +34,40 @@
 
   /* One focus ring for every control, shown for keyboard use only */
   :focus-visible {
-    outline: 2px solid #047857;
+    outline: 2px solid #fe4e2b;
     outline-offset: 2px;
   }
 }
 
 @layer components {
-  /* Background glow — soft blurred green fields behind the hero */
+  /* Background glow — soft blurred red fields behind the hero */
   .glow {
     position: absolute;
     border-radius: 9999px;
     filter: blur(90px);
   }
-  .glow-green {
+  .glow-red {
     left: 15%;
     top: 0;
     width: 70%;
     height: 520px;
-    background: #bbf7d0;
+    background: #ffcbbf;
     opacity: 0.8;
   }
-  .glow-mint {
+  .glow-rose {
     left: -15%;
     top: -180px;
     width: 53%;
     height: 420px;
-    background: #6ee7b7;
+    background: #ffb3a3;
     opacity: 0.7;
   }
-  .glow-lime {
+  .glow-peach {
     right: -15%;
     top: 380px;
     width: 53%;
     height: 420px;
-    background: #d9f99d;
+    background: #fed7aa;
     opacity: 0.7;
   }
 
@@ -76,7 +76,7 @@
     background: rgb(255 255 255 / 0.75);
     border: 1px solid rgb(15 23 42 / 0.12);
     backdrop-filter: blur(12px);
-    box-shadow: 0 12px 32px rgb(6 78 59 / 0.12);
+    box-shadow: 0 12px 32px rgb(142 33 11 / 0.12);
     cursor: text;
     transition:
       border-color 150ms,
@@ -86,10 +86,10 @@
     border-color: rgb(15 23 42 / 0.25);
   }
   .glass-field:focus-within {
-    border-color: #047857;
+    border-color: #fe4e2b;
     box-shadow:
-      0 0 0 3px rgb(4 120 87 / 0.25),
-      0 12px 32px rgb(6 78 59 / 0.12);
+      0 0 0 3px rgb(254 78 43 / 0.25),
+      0 12px 32px rgb(142 33 11 / 0.12);
   }
   .glass-field.is-invalid {
     border-color: #be123c;
@@ -107,17 +107,17 @@
     height: 40px;
     padding: 0 20px;
     border-radius: 12px;
-    background: #047857;
+    background: #d03011;
     color: #fff;
     font-size: 15px;
     font-weight: 600;
     transition: background-color 150ms;
   }
   .primary-button:hover:not(:disabled) {
-    background: #065f46;
+    background: #aa280e;
   }
   .primary-button:disabled {
-    background: #3f6b5c;
+    background: #7f5247;
   }
   .spinner {
     width: 14px;
@@ -158,13 +158,13 @@
   }
   /* The capture choice is radios dressed as chips */
   .country-chip:has(input:focus-visible) {
-    outline: 2px solid #047857;
+    outline: 2px solid #fe4e2b;
     outline-offset: 2px;
   }
   .country-chip.is-checked {
-    background: #ecfdf5;
-    border-color: #047857;
-    color: #064e3b;
+    background: #fff3f0;
+    border-color: #fe4e2b;
+    color: #8e210b;
   }
   /* An empty ring that fills with a tick, so a chip keeps its width */
   .country-chip-mark {
@@ -181,16 +181,16 @@
       border-color 150ms;
   }
   .country-chip.is-checked .country-chip-mark {
-    border-color: #047857;
-    background: #047857;
+    border-color: #fe4e2b;
+    background: #fe4e2b;
     color: #fff;
   }
   .text-button {
-    color: #065f46;
+    color: #aa280e;
     transition: background-color 150ms;
   }
   .text-button:hover {
-    background: #ecfdf5;
+    background: #fff3f0;
   }
 
   /* Results: one card per row on phones and two beside them, large enough to
@@ -217,7 +217,7 @@
     background: rgb(255 255 255 / 0.6);
     border: 1px solid rgb(255 255 255 / 0.8);
     backdrop-filter: blur(16px);
-    box-shadow: 0 8px 24px rgb(6 78 59 / 0.1);
+    box-shadow: 0 8px 24px rgb(142 33 11 / 0.1);
   }
   /* Screenshots are 1280x720; other states may grow past that shape */
   .result-body {
@@ -294,7 +294,7 @@
     transition: background-color 150ms;
   }
   .view-toggle button:hover {
-    color: #064e3b;
+    color: #8e210b;
   }
   .view-toggle svg {
     width: 14px;
@@ -302,7 +302,7 @@
   }
   .view-toggle button[aria-pressed='true'] {
     background: #fff;
-    color: #064e3b;
+    color: #8e210b;
     box-shadow: 0 1px 2px rgb(15 23 42 / 0.15);
   }
 
@@ -318,7 +318,7 @@
   .meter-fill {
     height: 100%;
     border-radius: 9999px;
-    background: #047857;
+    background: #fe4e2b;
     transition: width 300ms linear;
   }
 
@@ -362,15 +362,15 @@
     border-radius: 10px;
     padding: 0 34px 0 12px;
     line-height: inherit;
-    background: #d1fae5
+    background: #ffe2db
       url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23047857' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E")
       right 8px center / 18px no-repeat;
-    color: #047857;
+    color: #d03011;
     font: inherit;
     transition: background-color 150ms;
   }
   .site-select:hover {
-    background-color: #a7f3d0;
+    background-color: #ffcbbf;
   }
 
   /* The map as the hero's backdrop: faded towards its edges so the text over
@@ -412,16 +412,143 @@
     opacity: 0.4;
   }
   .map-dot.is-checked {
-    background: #34d399;
+    background: #ff7d63;
     opacity: 1;
     animation: pin-pulse 2s ease-out infinite;
+  }
+
+  /* A browser window playing a real example country by country */
+  .showcase {
+    min-width: 0;
+    margin: 0;
+  }
+  .showcase-window {
+    overflow: hidden;
+    border: 1px solid rgb(142 33 11 / 0.14);
+    border-radius: 16px;
+    background: #fff;
+    box-shadow:
+      0 2px 6px rgb(142 33 11 / 0.08),
+      0 28px 60px -12px rgb(142 33 11 / 0.3);
+  }
+  .showcase-bar {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 14px;
+    border-bottom: 1px solid rgb(142 33 11 / 0.1);
+    background: #fff8f6;
+  }
+  .showcase-lights {
+    display: flex;
+    gap: 6px;
+  }
+  .showcase-lights i {
+    width: 10px;
+    height: 10px;
+    border-radius: 9999px;
+    background: #ffcbbf;
+  }
+  .showcase-address {
+    flex: 1;
+    min-width: 0;
+    padding: 3px 12px;
+    border-radius: 9999px;
+    background: #fff;
+    box-shadow: inset 0 0 0 1px rgb(142 33 11 / 0.12);
+    font-size: 13px;
+    color: #334155;
+  }
+  .showcase-screen {
+    position: relative;
+    aspect-ratio: 16 / 9;
+    background: #fff8f6;
+  }
+  .showcase-badge {
+    position: absolute;
+    pointer-events: none;
+    left: 12px;
+    bottom: 12px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 14px 8px 10px;
+    border-radius: 12px;
+    background: rgb(255 255 255 / 0.95);
+    box-shadow: 0 8px 24px rgb(15 23 42 / 0.25);
+    font-size: 12px;
+    line-height: 1.35;
+    color: #334155;
+  }
+  .showcase-badge strong {
+    font-size: 13px;
+    color: #3a1408;
+  }
+  .showcase-tabs {
+    display: flex;
+    align-items: stretch;
+    gap: 6px;
+    margin-top: 12px;
+  }
+  .showcase-tab {
+    position: relative;
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    min-width: 0;
+    min-height: 40px;
+    overflow: hidden;
+    border: 1px solid rgb(15 23 42 / 0.12);
+    border-radius: 10px;
+    background: rgb(255 255 255 / 0.75);
+    font-size: 13px;
+    font-weight: 600;
+    white-space: nowrap;
+    color: #334155;
+  }
+  .showcase-tab:hover {
+    border-color: #ffb3a3;
+  }
+  .showcase-tab.is-active {
+    border-color: #fe4e2b;
+    background: #fff;
+    color: #d03011;
+  }
+  /* The active tab fills up until the next country */
+  .showcase-tab.is-active:not(.is-paused)::after {
+    content: "";
+    position: absolute;
+    left: 0;
+    bottom: 0;
+    width: 100%;
+    height: 3px;
+    background: #fe4e2b;
+    transform-origin: left;
+    animation: showcase-progress var(--showcase-ms) linear;
+  }
+  .showcase-pause {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 40px;
+    flex-shrink: 0;
+    border: 1px solid rgb(15 23 42 / 0.12);
+    border-radius: 10px;
+    background: rgb(255 255 255 / 0.75);
+    color: #334155;
+  }
+  .showcase-pause:hover {
+    border-color: #ffb3a3;
+    color: #d03011;
   }
 
   /* Written guide below the tool; its markup is in index.html and guide.ts
      animates it */
   .guide {
-    border-top: 1px solid rgb(6 78 59 / 0.12);
-    background: #f4fbf6;
+    border-top: 1px solid rgb(142 33 11 / 0.12);
+    background: #fff8f6;
     padding: 56px 16px 32px;
     color: #334155;
     font-size: 16px;
@@ -436,7 +563,7 @@
   }
   .guide h2 {
     margin-bottom: 20px;
-    color: #064e3b;
+    color: #8e210b;
     font-size: 28px;
     font-weight: 700;
     line-height: 1.2;
@@ -469,10 +596,10 @@
 
   .guide-intro {
     border-radius: 24px;
-    background: linear-gradient(135deg, #065f46, #047857 55%, #0d9488);
+    background: linear-gradient(135deg, #aa280e, #c62e10 55%, #d03011);
     padding: 40px 24px;
-    color: #ecfdf5;
-    box-shadow: 0 20px 48px rgb(6 78 59 / 0.25);
+    color: #fff3f0;
+    box-shadow: 0 20px 48px rgb(142 33 11 / 0.25);
   }
   .guide .guide-intro h2 {
     color: #fff;
@@ -488,7 +615,7 @@
   .steps li {
     position: relative;
     border-radius: 20px;
-    border: 1px solid rgb(6 78 59 / 0.12);
+    border: 1px solid rgb(142 33 11 / 0.12);
     background: #fff;
     padding: 44px 20px 20px;
     text-align: center;
@@ -506,8 +633,8 @@
     align-items: center;
     justify-content: center;
     border-radius: 9999px;
-    border: 4px solid #f4fbf6;
-    background: #047857;
+    border: 4px solid #fff8f6;
+    background: #d03011;
     color: #fff;
     font-size: 18px;
     font-weight: 700;
@@ -522,7 +649,7 @@
       right: calc(50% + 30px);
       top: 3px;
       width: calc(100% - 44px);
-      border-top: 2px dashed #6ee7b7;
+      border-top: 2px dashed #ffb3a3;
     }
   }
   @media (max-width: 719px) {
@@ -542,14 +669,14 @@
     flex-direction: column;
     min-width: 132px;
     border-radius: 16px;
-    border: 1px solid rgb(6 78 59 / 0.12);
+    border: 1px solid rgb(142 33 11 / 0.12);
     background: #fff;
     padding: 10px 16px;
     text-align: center;
     line-height: 1.35;
   }
   .places strong {
-    color: #064e3b;
+    color: #8e210b;
     font-weight: 600;
   }
   .places span {
@@ -564,7 +691,7 @@
   }
   .reasons li {
     border-radius: 20px;
-    border: 1px solid rgb(6 78 59 / 0.12);
+    border: 1px solid rgb(142 33 11 / 0.12);
     background: #fff;
     padding: 20px;
     transition:
@@ -575,8 +702,8 @@
   }
   .reasons li:hover {
     transform: translateY(-4px);
-    border-color: #6ee7b7;
-    box-shadow: 0 14px 30px rgb(6 78 59 / 0.14);
+    border-color: #ffb3a3;
+    box-shadow: 0 14px 30px rgb(142 33 11 / 0.14);
   }
   .reason-icon {
     display: flex;
@@ -586,7 +713,7 @@
     align-items: center;
     justify-content: center;
     border-radius: 14px;
-    background: #d1fae5;
+    background: #ffe2db;
     font-size: 22px;
   }
   .reasons h3 {
@@ -600,7 +727,7 @@
   }
   .faq-item {
     border-radius: 16px;
-    border: 1px solid rgb(6 78 59 / 0.12);
+    border: 1px solid rgb(142 33 11 / 0.12);
     background: #fff;
     transition:
       opacity 500ms ease-out,
@@ -611,7 +738,7 @@
     margin-top: 10px;
   }
   .faq-item.is-open {
-    border-color: #6ee7b7;
+    border-color: #ffb3a3;
   }
   .faq-item h3 {
     padding: 14px 18px 0;
@@ -632,7 +759,7 @@
   .faq-item h3 button::after {
     content: "+";
     flex-shrink: 0;
-    color: #047857;
+    color: #d03011;
     font-size: 24px;
     font-weight: 500;
     line-height: 1;
@@ -645,9 +772,177 @@
     padding: 4px 18px 16px;
   }
 
+  /* Pricing: monthly or annual, then one card per plan */
+  .billing-toggle {
+    display: inline-flex;
+    gap: 4px;
+    padding: 4px;
+    border-radius: 9999px;
+    background: rgb(255 255 255 / 0.75);
+    border: 1px solid rgb(15 23 42 / 0.12);
+  }
+  .billing-toggle button {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    height: 36px;
+    padding: 0 18px;
+    border-radius: 9999px;
+    color: #334155;
+    font-size: 14px;
+    font-weight: 600;
+    transition:
+      background-color 150ms,
+      color 150ms;
+  }
+  .billing-toggle button.is-checked {
+    background: #d03011;
+    color: #fff;
+  }
+  .save-badge {
+    border-radius: 9999px;
+    background: #fed7aa;
+    padding: 1px 8px;
+    color: #7c2d12;
+    font-size: 12px;
+  }
+
+  .plan-card {
+    position: relative;
+    border-radius: 24px;
+    border: 1px solid rgb(142 33 11 / 0.12);
+    background: rgb(255 255 255 / 0.85);
+    backdrop-filter: blur(12px);
+    padding: 28px 24px;
+    box-shadow: 0 12px 32px rgb(142 33 11 / 0.08);
+    transition:
+      transform 200ms ease-out,
+      box-shadow 200ms;
+  }
+  .plan-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 18px 40px rgb(142 33 11 / 0.14);
+  }
+  /* The ring is a shadow so the card's content lines up with the others */
+  .plan-card.is-popular,
+  .plan-card.is-popular:hover {
+    border-color: #fe4e2b;
+    background: #fff;
+    box-shadow:
+      0 0 0 1px #fe4e2b,
+      0 20px 48px rgb(142 33 11 / 0.2);
+  }
+  .popular-badge {
+    position: absolute;
+    left: 50%;
+    top: -14px;
+    transform: translateX(-50%);
+    border-radius: 9999px;
+    background: linear-gradient(135deg, #aa280e, #c62e10 55%, #d03011);
+    padding: 4px 14px;
+    color: #fff;
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    white-space: nowrap;
+  }
+  .plan-cta {
+    display: flex;
+    margin-top: 20px;
+    height: 44px;
+    padding: 0 20px;
+    align-items: center;
+    justify-content: center;
+    border-radius: 12px;
+    border: 1px solid #d03011;
+    color: #aa280e;
+    font-size: 15px;
+    font-weight: 600;
+    transition: background-color 150ms;
+  }
+  .plan-cta:hover {
+    background: #fff3f0;
+  }
+  .plan-cta.is-primary {
+    background: #d03011;
+    color: #fff;
+  }
+  .plan-cta.is-primary:hover {
+    background: #aa280e;
+  }
+  .addon {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    border-radius: 20px;
+    border: 1px dashed #ffb3a3;
+    background: rgb(255 255 255 / 0.6);
+    padding: 18px 24px;
+  }
+
+  /* Every plan side by side; scrolls sideways on narrow phones */
+  .compare {
+    overflow-x: auto;
+    border-radius: 20px;
+    border: 1px solid rgb(142 33 11 / 0.12);
+    background: #fff;
+  }
+  .compare table {
+    width: 100%;
+    min-width: 560px;
+    border-collapse: collapse;
+    font-size: 15px;
+  }
+  .compare th,
+  .compare td {
+    padding: 12px 16px;
+    border-top: 1px solid rgb(142 33 11 / 0.08);
+    text-align: center;
+  }
+  .compare thead th {
+    border-top: 0;
+    color: #8e210b;
+    font-size: 17px;
+    font-weight: 700;
+  }
+  .compare tbody th {
+    color: #0f172a;
+    font-weight: 500;
+    text-align: left;
+  }
+  .compare .group th {
+    background: #fff8f6;
+    color: #d03011;
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+  }
+  .compare .is-popular {
+    background: #fff3f0;
+  }
+  .intro-cta {
+    display: inline-flex;
+    margin-top: 12px;
+    height: 44px;
+    padding: 0 22px;
+    align-items: center;
+    border-radius: 12px;
+    background: #fff;
+    color: #aa280e;
+    font-weight: 600;
+    transition: background-color 150ms;
+  }
+  .intro-cta:hover {
+    background: #ffe2db;
+  }
+
   .guide footer {
     margin-top: 56px;
-    border-top: 1px solid rgb(6 78 59 / 0.12);
+    border-top: 1px solid rgb(142 33 11 / 0.12);
     padding-top: 20px;
     color: #475569;
     font-size: 14px;
@@ -657,16 +952,22 @@
 
 @keyframes pin-pulse {
   from {
-    box-shadow: 0 0 0 0 rgb(52 211 153 / 0.8);
+    box-shadow: 0 0 0 0 rgb(255 125 99 / 0.8);
   }
   to {
-    box-shadow: 0 0 0 12px rgb(52 211 153 / 0);
+    box-shadow: 0 0 0 12px rgb(255 125 99 / 0);
   }
 }
 
 @keyframes spin {
   to {
     transform: rotate(360deg);
+  }
+}
+
+@keyframes showcase-progress {
+  from {
+    transform: scaleX(0);
   }
 }
 
