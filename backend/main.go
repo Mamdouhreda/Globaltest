@@ -34,7 +34,7 @@ type urlRequest struct {
 	// Video asks for a scroll video as well as the screenshot. It is opt-in
 	// since it adds time and cost to every test.
 	Video bool `json:"video,omitempty"`
-	// Turnstile is the token from the frontend's bot check, one per request.
+	// Turnstile is the bot pass from POST /verify (see botpass.go).
 	Turnstile string `json:"turnstile,omitempty"`
 }
 
@@ -59,6 +59,7 @@ type urlResponse struct {
 // its presence is what decides which mode to run in.
 func main() {
 	mux := http.NewServeMux()
+	mux.HandleFunc("POST /verify", receiveVerify)
 	mux.HandleFunc("POST /url", receiveURL)
 	mux.HandleFunc("GET /result", receiveResult)
 	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {

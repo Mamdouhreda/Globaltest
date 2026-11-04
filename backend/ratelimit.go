@@ -33,6 +33,8 @@ const counterLifetime = 48 * time.Hour
 const (
 	userLimitMessage   = "You've used today's free tests. Try again tomorrow."
 	globalLimitMessage = "All of today's free tests have been used. Try again tomorrow."
+
+	botCheckFailedMessage = "The bot check didn't pass. Refresh the page and try again."
 )
 
 // dailyCounter is one limit a test has to pass.
@@ -56,8 +58,9 @@ func allowTest(w http.ResponseWriter, r *http.Request, token string) bool {
 	}
 
 	// Left empty, the bot check is off: there are no Turnstile keys yet, or
-	// this is local dev.
-	if secret := os.Getenv("TURNSTILE_SECRET_KEY"); secret != "" {
+	// this is local dev. A raw token also passes, for one test, since that's
+	// what a page loaded before bot passes existed still sends.
+	if secret := os.Getenv("TURNSTILE_SECRET_KEY"); secret != "" && !validBotPass(secret, token, ip, time.Now()) {
 		human, err := verifyTurnstile(ctx, turnstileVerifyURL, secret, token, ip)
 		if err != nil {
 			log.Printf("turnstile: %v", err)
@@ -65,7 +68,7 @@ func allowTest(w http.ResponseWriter, r *http.Request, token string) bool {
 			return false
 		}
 		if !human {
-			http.Error(w, "The bot check didn't pass. Refresh the page and try again.", http.StatusForbidden)
+			http.Error(w, botCheckFailedMessage, http.StatusForbidden)
 			return false
 		}
 	}
