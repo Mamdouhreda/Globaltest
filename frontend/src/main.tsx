@@ -1,6 +1,6 @@
 import React, { useEffect, useId, useRef, useState } from 'react';
 import { createRoot } from 'react-dom/client';
-import { AU, BR, DE, GB, IE, IN, US } from 'country-flag-icons/react/3x2';
+import { AE, AU, BH, BR, CA, CH, DE, ES, FR, GB, HK, ID, IE, IN, IT, JP, KR, MX, MY, NZ, SE, SG, TH, TW, US, ZA } from 'country-flag-icons/react/3x2';
 import facebookBrazil from './assets/example-facebook-brazil.png';
 import facebookGermany from './assets/example-facebook-germany.png';
 import facebookIndia from './assets/example-facebook-india.png';
@@ -57,36 +57,66 @@ type RegionResult =
 // percentages of the map image, which spans latitudes 80°N to 56°S.
 type Pin = { x: number; y: number };
 
-type Region = { value: string; label: string; flag: React.ReactNode; pin?: Pin };
+// soon marks a country with an AWS region but no browsers deployed yet: it is
+// shown but can't be picked. Take it off once the region is live (see
+// "Structure" in terraform/README.md for what a new region needs).
+type Region = { value: string; label: string; flag: React.ReactNode; area: string; keywords?: string; pin?: Pin; soon?: boolean };
 
 // Flags are SVGs because Windows has no flag emoji.
 const COUNTRIES: Region[] = [
   // Pins sit on the cities the browsers run in: London, Northern Virginia,
   // Frankfurt, Sydney, Dublin, Mumbai and São Paulo.
-  { value: 'uk', label: 'United Kingdom', flag: <GB className="flag" />, pin: { x: 49.97, y: 20.96 } },
-  { value: 'us', label: 'United States', flag: <US className="flag" />, pin: { x: 28.47, y: 30.15 } },
-  { value: 'germany', label: 'Germany', flag: <DE className="flag" />, pin: { x: 52.42, y: 21.99 } },
-  { value: 'australia', label: 'Australia', flag: <AU className="flag" />, pin: { x: 92.0, y: 83.75 } },
-  { value: 'ireland', label: 'Ireland', flag: <IE className="flag" />, pin: { x: 48.25, y: 19.63 } },
-  { value: 'india', label: 'India', flag: <IN className="flag" />, pin: { x: 70.25, y: 44.78 } },
-  { value: 'brazil', label: 'Brazil', flag: <BR className="flag" />, pin: { x: 37.06, y: 76.18 } },
+  { value: 'uk', label: 'United Kingdom', flag: <GB className="flag" />, area: 'Europe', keywords: 'Britain England', pin: { x: 49.97, y: 20.96 } },
+  { value: 'us', label: 'United States', flag: <US className="flag" />, area: 'Americas', keywords: 'USA America', pin: { x: 28.47, y: 30.15 } },
+  { value: 'germany', label: 'Germany', flag: <DE className="flag" />, area: 'Europe', pin: { x: 52.42, y: 21.99 } },
+  { value: 'australia', label: 'Australia', flag: <AU className="flag" />, area: 'Asia Pacific', pin: { x: 92.0, y: 83.75 } },
+  { value: 'ireland', label: 'Ireland', flag: <IE className="flag" />, area: 'Europe', pin: { x: 48.25, y: 19.63 } },
+  { value: 'india', label: 'India', flag: <IN className="flag" />, area: 'Asia Pacific', pin: { x: 70.25, y: 44.78 } },
+  { value: 'brazil', label: 'Brazil', flag: <BR className="flag" />, area: 'Americas', pin: { x: 37.06, y: 76.18 } },
+  // More countries with an AWS region, on the region's city or, where
+  // AWS names only the country, its largest city.
+  { value: 'bahrain', label: 'Bahrain', flag: <BH className="flag" />, area: 'Middle East and Africa', pin: { x: 64.04, y: 39.65 }, soon: true },
+  { value: 'canada', label: 'Canada', flag: <CA className="flag" />, area: 'Americas', pin: { x: 29.56, y: 25.37 }, soon: true },
+  { value: 'france', label: 'France', flag: <FR className="flag" />, area: 'Europe', pin: { x: 50.65, y: 22.9 }, soon: true },
+  { value: 'hongkong', label: 'Hong Kong', flag: <HK className="flag" />, area: 'Asia Pacific', pin: { x: 81.71, y: 42.41 }, soon: true },
+  { value: 'indonesia', label: 'Indonesia', flag: <ID className="flag" />, area: 'Asia Pacific', pin: { x: 79.68, y: 63.39 }, soon: true },
+  { value: 'italy', label: 'Italy', flag: <IT className="flag" />, area: 'Europe', pin: { x: 52.55, y: 25.4 }, soon: true },
+  { value: 'japan', label: 'Japan', flag: <JP className="flag" />, area: 'Asia Pacific', pin: { x: 88.8, y: 32.59 }, soon: true },
+  { value: 'malaysia', label: 'Malaysia', flag: <MY className="flag" />, area: 'Asia Pacific', pin: { x: 78.25, y: 56.51 }, soon: true },
+  { value: 'mexico', label: 'Mexico', flag: <MX className="flag" />, area: 'Americas', pin: { x: 22.11, y: 43.68 }, soon: true },
+  { value: 'newzealand', label: 'New Zealand', flag: <NZ className="flag" />, area: 'Asia Pacific', pin: { x: 98.54, y: 85.93 }, soon: true },
+  { value: 'singapore', label: 'Singapore', flag: <SG className="flag" />, area: 'Asia Pacific', pin: { x: 78.84, y: 57.83 }, soon: true },
+  { value: 'southafrica', label: 'South Africa', flag: <ZA className="flag" />, area: 'Middle East and Africa', pin: { x: 55.12, y: 83.76 }, soon: true },
+  { value: 'southkorea', label: 'South Korea', flag: <KR className="flag" />, area: 'Asia Pacific', pin: { x: 85.27, y: 31.2 }, soon: true },
+  { value: 'spain', label: 'Spain', flag: <ES className="flag" />, area: 'Europe', pin: { x: 49.76, y: 28.2 }, soon: true },
+  { value: 'sweden', label: 'Sweden', flag: <SE className="flag" />, area: 'Europe', pin: { x: 55.02, y: 15.2 }, soon: true },
+  { value: 'switzerland', label: 'Switzerland', flag: <CH className="flag" />, area: 'Europe', pin: { x: 52.37, y: 23.99 }, soon: true },
+  { value: 'taiwan', label: 'Taiwan', flag: <TW className="flag" />, area: 'Asia Pacific', pin: { x: 83.77, y: 40.42 }, soon: true },
+  { value: 'thailand', label: 'Thailand', flag: <TH className="flag" />, area: 'Asia Pacific', pin: { x: 77.92, y: 48.71 }, soon: true },
+  { value: 'uae', label: 'United Arab Emirates', flag: <AE className="flag" />, area: 'Middle East and Africa', pin: { x: 65.35, y: 40.29 }, soon: true },
 ];
 
 const REGIONS: Region[] = [
   // The local option runs Chrome on the dev machine, so only offer it in dev.
-  ...(import.meta.env.DEV ? [{ value: '', label: 'Local', flag: '💻' }] : []),
+  ...(import.meta.env.DEV ? [{ value: '', label: 'Local', flag: '💻', area: 'This computer' }] : []),
   ...COUNTRIES,
 ];
+
+// The continents in the country picker, in the order it lists them.
+const AREAS = ['This computer', 'Americas', 'Europe', 'Asia Pacific', 'Middle East and Africa'];
 
 type Shot = { region: Region; screenshot: string; responseTimeMs?: number; video?: string };
 
 type Example = { name: string; url: string; date: string; shots: Shot[] };
 
-// The countries a first visit starts with, and the ones the examples show:
-// the United States, Brazil, Germany and India.
-const STARTING_COUNTRIES = [COUNTRIES[1], COUNTRIES[6], COUNTRIES[2], COUNTRIES[5]];
+// The countries the examples show: the United States, Brazil, Germany and India.
+const EXAMPLE_COUNTRIES = [COUNTRIES[1], COUNTRIES[6], COUNTRIES[2], COUNTRIES[5]];
 
-// One example per site, with a screenshot and a time for each starting
+// The countries a first visit starts with: one each in North America, Europe
+// and Asia, kept few because every country is a browser to pay for.
+const STARTING_COUNTRIES = ['us', 'germany', 'india'];
+
+// One example per site, with a screenshot and a time for each example
 // country, and a scroll video for some.
 function example(
   name: string,
@@ -100,7 +130,7 @@ function example(
     name,
     url,
     date,
-    shots: STARTING_COUNTRIES.map((region, index) => ({
+    shots: EXAMPLE_COUNTRIES.map((region, index) => ({
       region,
       screenshot: screenshots[index],
       responseTimeMs: times[index],
@@ -110,13 +140,13 @@ function example(
 }
 
 // Real results from tests run on the given dates, shown until the visitor
-// runs a test of their own, in the order of STARTING_COUNTRIES. MSN and Yahoo
+// runs a test of their own, in the order of EXAMPLE_COUNTRIES. MSN and Yahoo
 // change language and news by country and their pages scroll, so every
 // result has a scroll video; Facebook fits on one screen.
 const EXAMPLES: Example[] = [
-  example('MSN', 'msn.com', '4 November 2026', [msnUs, msnBrazil, msnGermany, msnIndia], [6903, 1527, 1233, 1241], [msnUsVideo, msnBrazilVideo, msnGermanyVideo, msnIndiaVideo]),
   example('Yahoo', 'yahoo.com', '4 November 2026', [yahooUs, yahooBrazil, yahooGermany, yahooIndia], [1361, 4418, 2113, 2343], [yahooUsVideo, yahooBrazilVideo, yahooGermanyVideo, yahooIndiaVideo]),
   example('Facebook', 'facebook.com', '4 November 2026', [facebookUs, facebookBrazil, facebookGermany, facebookIndia], [1364, 1687, 1035, 2730]),
+  example('MSN', 'msn.com', '4 November 2026', [msnUs, msnBrazil, msnGermany, msnIndia], [6903, 1527, 1233, 1241], [msnUsVideo, msnBrazilVideo, msnGermanyVideo, msnIndiaVideo]),
 ];
 
 const POLL_INTERVAL_MS = 3000;
@@ -256,9 +286,22 @@ function SearchIcon() {
   );
 }
 
-// The countries as a row of chips: pressing one adds its country to the test
-// or takes it out.
-function CountryChips({
+// What the closed picker says: the first countries by name, then how many more.
+function describeCountries(chosen: Region[], total: number): string {
+  if (chosen.length === 0) {
+    return 'Choose countries';
+  }
+  if (chosen.length === total) {
+    return `All ${total} countries`;
+  }
+  const names = chosen.slice(0, 2).map((region) => region.label).join(', ');
+  return chosen.length > 2 ? `${names} +${chosen.length - 2} more` : names;
+}
+
+// The countries as a dropdown: a line with the chosen flags that opens a list
+// to search, grouped by continent, under a map that lights up as they're
+// picked. On a phone the list is a sheet from the bottom of the screen.
+function CountryPicker({
   selected,
   onToggle,
   onSetAll,
@@ -270,41 +313,218 @@ function CountryChips({
   errorId?: string;
 }) {
   const labelId = useId();
-  const allSelected = REGIONS.every((region) => selected.includes(region.value));
+  const panelId = useId();
+  const [open, setOpen] = useState(false);
+  const [query, setQuery] = useState('');
+  const [preview, setPreview] = useState<string>();
+  const rootRef = useRef<HTMLDivElement>(null);
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const searchRef = useRef<HTMLInputElement>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
+
+  const available = REGIONS.filter((region) => !region.soon);
+  const chosen = available.filter((region) => selected.includes(region.value));
+  const allSelected = chosen.length === available.length;
+
+  const needle = query.trim().toLowerCase();
+  const matching = REGIONS.filter((region) =>
+    `${region.label} ${region.value} ${region.keywords ?? ''}`.toLowerCase().includes(needle),
+  );
+
+  function close(returnFocus = false) {
+    setOpen(false);
+    setQuery('');
+    setPreview(undefined);
+    if (returnFocus) {
+      triggerRef.current?.focus();
+    }
+  }
+
+  useEffect(() => {
+    if (!open) {
+      return;
+    }
+    function onPointerDown(event: PointerEvent) {
+      if (!rootRef.current?.contains(event.target as Node)) {
+        close();
+      }
+    }
+    document.addEventListener('pointerdown', onPointerDown);
+    // On a phone the keyboard would cover the list, so only wider screens
+    // start in the search box.
+    if (window.matchMedia('(min-width: 640px)').matches) {
+      searchRef.current?.focus();
+      panelRef.current?.scrollIntoView({ block: 'nearest' });
+    }
+    return () => document.removeEventListener('pointerdown', onPointerDown);
+  }, [open]);
 
   return (
-    <div role="group" aria-labelledby={labelId} aria-describedby={errorId} className="flex flex-col items-center gap-2.5">
-      <div className="flex items-center gap-1">
-        <p id={labelId} className="text-sm font-semibold text-slate-800">
-          Test from
-        </p>
+    <div className="flex w-full flex-col items-center gap-2.5">
+      <p id={labelId} className="text-sm font-semibold text-slate-800">
+        Test from
+      </p>
+      <div
+        ref={rootRef}
+        className="picker"
+        onKeyDown={(event) => {
+          if (open && event.key === 'Escape') {
+            close(true);
+          }
+        }}
+        onBlur={(event) => {
+          if (event.relatedTarget && !event.currentTarget.contains(event.relatedTarget)) {
+            close();
+          }
+        }}
+      >
         <button
+          ref={triggerRef}
           type="button"
-          onClick={() => onSetAll(allSelected ? [] : REGIONS.map((region) => region.value))}
-          className="text-button rounded-full px-2.5 py-1 text-sm font-semibold"
+          onClick={() => (open ? close() : setOpen(true))}
+          aria-expanded={open}
+          aria-controls={panelId}
+          aria-labelledby={`${labelId} ${panelId}-summary`}
+          aria-describedby={errorId}
+          className={`picker-trigger ${open ? 'is-open' : ''}`}
         >
-          {allSelected ? 'Clear all' : 'Select all'}
+          {chosen.length > 0 && (
+            <span className="picker-flags" aria-hidden>
+              {chosen.slice(0, 4).map((region) => (
+                <span key={region.value} className="picker-flag">
+                  {region.flag}
+                </span>
+              ))}
+            </span>
+          )}
+          <span id={`${panelId}-summary`} className="min-w-0 flex-1 truncate text-left">
+            {describeCountries(chosen, available.length)}
+          </span>
+          <svg viewBox="0 0 24 24" className="picker-chevron size-5 shrink-0" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+            <path d="m6 9 6 6 6-6" />
+          </svg>
         </button>
-      </div>
-      <div className="flex flex-wrap justify-center gap-2">
-        {REGIONS.map((region) => {
-          const checked = selected.includes(region.value);
-          return (
+
+        {open && <div className="picker-backdrop" aria-hidden />}
+
+        <div ref={panelRef} id={panelId} role="group" aria-labelledby={labelId} hidden={!open} className="picker-panel">
+          <div className="picker-map" aria-hidden>
+            <CountryMap selected={selected} preview={preview} />
+          </div>
+
+          <div className="picker-search">
+            <SearchIcon />
+            <input
+              ref={searchRef}
+              type="text"
+              value={query}
+              onChange={(event) => setQuery(event.target.value)}
+              onKeyDown={(event) => {
+                // Enter picks the first match and is ready for the next one,
+                // instead of submitting the test.
+                if (event.key === 'Enter') {
+                  event.preventDefault();
+                  const first = matching.find((region) => !region.soon);
+                  if (needle && first) {
+                    onToggle(first.value);
+                    setQuery('');
+                  }
+                }
+              }}
+              placeholder="Search countries"
+              aria-label="Search countries"
+              autoComplete="off"
+              spellCheck={false}
+              enterKeyHint="done"
+              className="min-w-0 flex-1 bg-transparent text-base text-slate-900 outline-none placeholder:text-slate-500 sm:text-sm"
+            />
+          </div>
+
+          <div className="picker-list">
+            {matching.length === 0 && <p className="px-3 py-8 text-center text-sm text-slate-600">No country matches “{query.trim()}”.</p>}
+            {AREAS.map((area) => {
+              const regions = matching
+                .filter((region) => region.area === area)
+                // Countries ready to test come first, then A to Z.
+                .sort((a, b) => Number(!!a.soon) - Number(!!b.soon) || a.label.localeCompare(b.label));
+              if (regions.length === 0) {
+                return null;
+              }
+              const ready = regions.filter((region) => !region.soon).map((region) => region.value);
+              const allReady = ready.every((value) => selected.includes(value));
+              return (
+                <div key={area} role="group" aria-label={area} className="picker-area">
+                  <div className="picker-area-heading">
+                    <p>{area}</p>
+                    {!needle && ready.length > 1 && (
+                      <button
+                        type="button"
+                        onClick={() =>
+                          onSetAll(
+                            allReady
+                              ? selected.filter((value) => !ready.includes(value))
+                              : [...new Set([...selected, ...ready])],
+                          )
+                        }
+                        aria-label={`${allReady ? 'Clear' : 'Select'} all in ${area}`}
+                        className="text-button rounded-full px-2 py-0.5 text-xs font-semibold"
+                      >
+                        {allReady ? 'Clear' : 'Select all'}
+                      </button>
+                    )}
+                  </div>
+                  <div className="picker-rows">
+                    {regions.map((region) => {
+                      const checked = selected.includes(region.value);
+                      return (
+                        <label
+                          key={region.value}
+                          onMouseEnter={() => setPreview(region.value)}
+                          onMouseLeave={() => setPreview(undefined)}
+                          onFocus={() => setPreview(region.value)}
+                          className={`picker-row ${checked ? 'is-checked' : ''} ${region.soon ? 'is-soon' : ''}`}
+                        >
+                          <input
+                            type="checkbox"
+                            checked={checked}
+                            disabled={region.soon}
+                            onChange={() => onToggle(region.value)}
+                            className="sr-only"
+                          />
+                          <span aria-hidden>{region.flag}</span>
+                          <span className="min-w-0 flex-1 truncate">{region.label}</span>
+                          {region.soon ? (
+                            <span className="picker-soon">Soon</span>
+                          ) : (
+                            <span className="country-chip-mark" aria-hidden>
+                              <CheckIcon />
+                            </span>
+                          )}
+                        </label>
+                      );
+                    })}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+          <div className="picker-footer">
             <button
-              key={region.value}
               type="button"
-              onClick={() => onToggle(region.value)}
-              aria-pressed={checked}
-              className={`country-chip ${checked ? 'is-checked' : ''}`}
+              onClick={() => onSetAll(allSelected ? [] : available.map((region) => region.value))}
+              className="text-button rounded-full px-2.5 py-1 text-sm font-semibold"
             >
-              <span aria-hidden>{region.flag}</span>
-              {region.label}
-              <span className="country-chip-mark" aria-hidden>
-                <CheckIcon />
-              </span>
+              {allSelected ? 'Clear all' : 'Select all'}
             </button>
-          );
-        })}
+            <p role="status" className="ml-auto text-sm text-slate-700">
+              {chosen.length} selected
+            </p>
+            <button type="button" onClick={() => close(true)} className="picker-done">
+              Done
+            </button>
+          </div>
+        </div>
       </div>
     </div>
   );
@@ -361,17 +581,19 @@ function CheckIcon() {
 
 // The world map behind the hero, with a dot where each country's browsers
 // run. A chosen country's dot is lit. It is only a picture: countries are
-// picked with the chips.
-function CountryMap({ selected }: { selected: string[] }) {
+// picked with the picker. preview marks the country being pointed at there,
+// even one with no browsers yet.
+function CountryMap({ selected, preview }: { selected: string[]; preview?: string }) {
   return (
     <div className="world-map">
       <div className="world-map-image" />
       {REGIONS.map(
         (region) =>
-          region.pin && (
+          region.pin &&
+          (!region.soon || region.value === preview) && (
             <span
               key={region.value}
-              className={`map-dot ${selected.includes(region.value) ? 'is-checked' : ''}`}
+              className={`map-dot ${selected.includes(region.value) ? 'is-checked' : ''} ${region.value === preview ? 'is-preview' : ''}`}
               style={{ left: `${region.pin.x}%`, top: `${region.pin.y}%` }}
             />
           ),
@@ -489,7 +711,7 @@ function PauseIcon() {
 function App() {
   const [url, setUrl] = useState('');
   const [urlError, setUrlError] = useState('');
-  const [selected, setSelected] = useState<string[]>(() => STARTING_COUNTRIES.map((region) => region.value));
+  const [selected, setSelected] = useState<string[]>(STARTING_COUNTRIES);
   const [testedUrl, setTestedUrl] = useState('');
   // A scroll video adds time and cost, so tests take a screenshot only unless
   // the visitor asks for one.
@@ -627,7 +849,7 @@ function App() {
       </div>
 
       {/* A faded map behind the hero, with a lit dot for each chosen country.
-          Countries are picked with the chips, so the map is only a picture. */}
+          Countries are picked with the picker, so the map is only a picture. */}
       <div className="hero-map" aria-hidden>
         <CountryMap selected={selected} />
       </div>
@@ -694,7 +916,7 @@ function App() {
             )}
           </div>
 
-          <CountryChips
+          <CountryPicker
             selected={selected}
             onToggle={toggleRegion}
             onSetAll={setSelected}

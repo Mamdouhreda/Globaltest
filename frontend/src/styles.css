@@ -128,7 +128,7 @@
     animation: spin 0.8s linear infinite;
   }
 
-  /* Country chips: one toggle per country, with its flag */
+  /* Flags, and chips for the capture choice */
   .flag {
     display: block;
     width: 21px;
@@ -180,10 +180,264 @@
       background-color 150ms,
       border-color 150ms;
   }
-  .country-chip.is-checked .country-chip-mark {
+  .country-chip.is-checked .country-chip-mark,
+  .picker-row.is-checked .country-chip-mark {
     border-color: #fe4e2b;
     background: #fe4e2b;
     color: #fff;
+  }
+  /* The country picker: a line with the chosen flags that opens a list */
+  .picker {
+    position: relative;
+    z-index: 30;
+    width: 100%;
+    max-width: 440px;
+  }
+  .picker-trigger {
+    display: flex;
+    width: 100%;
+    min-height: 48px;
+    align-items: center;
+    gap: 10px;
+    padding: 0 12px;
+    border-radius: 9999px;
+    background: rgb(255 255 255 / 0.75);
+    border: 1px solid rgb(15 23 42 / 0.12);
+    color: #334155;
+    font-size: 15px;
+    font-weight: 500;
+    cursor: pointer;
+    transition:
+      background-color 150ms,
+      border-color 150ms;
+  }
+  .picker-trigger:hover,
+  .picker-trigger.is-open {
+    background: #fff;
+    border-color: rgb(15 23 42 / 0.25);
+  }
+  .picker-trigger.is-open {
+    border-color: #fe4e2b;
+  }
+  .picker-chevron {
+    color: #475569;
+    transition: transform 150ms;
+  }
+  .picker-trigger.is-open .picker-chevron {
+    transform: rotate(180deg);
+  }
+  /* Overlapping round flags, like the logo */
+  .picker-flags {
+    display: flex;
+    flex-shrink: 0;
+  }
+  .picker-flag {
+    display: block;
+    width: 26px;
+    height: 26px;
+    overflow: hidden;
+    border-radius: 9999px;
+    border: 2px solid #fff;
+    background: #fff;
+    box-shadow: 0 0 0 1px rgb(15 23 42 / 0.12);
+  }
+  .picker-flag + .picker-flag {
+    margin-left: -9px;
+  }
+  .picker-flag .flag {
+    width: 33px;
+    max-width: none;
+    height: 22px;
+    margin-left: -5px;
+    border-radius: 0;
+    box-shadow: none;
+  }
+  .picker-panel {
+    position: absolute;
+    top: calc(100% + 8px);
+    left: 50%;
+    display: flex;
+    width: min(640px, calc(100vw - 32px));
+    max-height: min(640px, 80vh);
+    flex-direction: column;
+    overflow: hidden;
+    border-radius: 20px;
+    background: #fff;
+    border: 1px solid rgb(15 23 42 / 0.12);
+    box-shadow: 0 24px 60px rgb(142 33 11 / 0.22);
+    text-align: left;
+    transform: translateX(-50%);
+    animation: fade-in 150ms ease-out;
+  }
+  .picker-panel[hidden] {
+    display: none;
+  }
+  /* The map above the list, shown in full rather than as a faded backdrop */
+  .picker-map {
+    flex-shrink: 0;
+    padding: 10px 0;
+    background: #fff3f0;
+    border-bottom: 1px solid rgb(15 23 42 / 0.08);
+  }
+  .picker-map .world-map {
+    width: 300px;
+    margin: 0 auto;
+  }
+  .picker-map .world-map-image {
+    opacity: 0.45;
+    mask-image: none;
+    border-radius: 6px;
+  }
+  .picker-map .map-dot {
+    width: 7px;
+    height: 7px;
+    margin: -3.5px 0 0 -3.5px;
+    box-shadow: 0 0 0 1.5px rgb(15 23 42 / 0.5);
+  }
+  .picker-map .map-dot.is-preview {
+    opacity: 1;
+    box-shadow:
+      0 0 0 1.5px #aa280e,
+      0 0 0 5px rgb(254 78 43 / 0.3);
+  }
+  .picker-search {
+    display: flex;
+    flex-shrink: 0;
+    min-height: 48px;
+    align-items: center;
+    gap: 10px;
+    padding: 0 16px;
+    border-bottom: 1px solid rgb(15 23 42 / 0.08);
+  }
+  .picker-search:focus-within {
+    box-shadow: inset 0 -2px 0 #fe4e2b;
+  }
+  .picker-search input:focus-visible {
+    outline: none;
+  }
+  .picker-list {
+    min-height: 0;
+    flex: 1;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    padding: 4px 8px 8px;
+  }
+  .picker-area-heading {
+    display: flex;
+    min-height: 32px;
+    align-items: center;
+    justify-content: space-between;
+    padding: 6px 8px 2px;
+    color: #475569;
+    font-size: 12px;
+    font-weight: 600;
+  }
+  .picker-rows {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 2px;
+  }
+  /* Relative so a row's hidden checkbox stays inside the scrolling list */
+  .picker-row {
+    position: relative;
+    display: flex;
+    min-height: 44px;
+    align-items: center;
+    gap: 10px;
+    padding: 0 10px;
+    border-radius: 10px;
+    color: #334155;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background-color 150ms;
+  }
+  .picker-row:hover {
+    background: #f8f4f2;
+  }
+  .picker-row:has(input:focus-visible) {
+    outline: 2px solid #fe4e2b;
+    outline-offset: -2px;
+  }
+  .picker-row.is-checked,
+  .picker-row.is-checked:hover {
+    background: #fff3f0;
+    color: #8e210b;
+  }
+  /* A country that can't be picked yet */
+  .picker-row.is-soon {
+    color: #475569;
+    cursor: default;
+  }
+  .picker-soon {
+    padding: 1px 7px;
+    border-radius: 9999px;
+    background: #f1f5f9;
+    color: #475569;
+    font-size: 11px;
+    font-weight: 500;
+  }
+  .picker-footer {
+    display: flex;
+    flex-shrink: 0;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 12px;
+    border-top: 1px solid rgb(15 23 42 / 0.08);
+  }
+  .picker-done {
+    min-height: 36px;
+    padding: 0 16px;
+    border-radius: 9999px;
+    background: #cf2f10;
+    color: #fff;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background-color 150ms;
+  }
+  .picker-done:hover {
+    background: #aa280e;
+  }
+  .picker-backdrop {
+    display: none;
+  }
+  /* With little height, the list needs the map's space */
+  @media (max-height: 720px) {
+    .picker-map {
+      display: none;
+    }
+  }
+  /* On a phone the list is a sheet from the bottom of the screen */
+  @media (max-width: 639px) {
+    .picker-backdrop {
+      display: block;
+      position: fixed;
+      inset: 0;
+      background: rgb(15 23 42 / 0.45);
+    }
+    .picker-panel {
+      position: fixed;
+      top: auto;
+      right: 0;
+      bottom: 0;
+      left: 0;
+      width: 100%;
+      max-height: 85dvh;
+      border-radius: 20px 20px 0 0;
+      border-width: 1px 0 0;
+      transform: none;
+      animation: sheet-up 200ms ease-out;
+    }
+    .picker-map {
+      display: none;
+    }
+    .picker-rows {
+      grid-template-columns: minmax(0, 1fr);
+    }
+    .picker-footer {
+      padding-bottom: calc(8px + env(safe-area-inset-bottom));
+    }
   }
   .text-button {
     color: #aa280e;
@@ -971,6 +1225,12 @@
   }
 }
 
+@keyframes sheet-up {
+  from {
+    transform: translateY(100%);
+  }
+}
+
 @keyframes fade-in {
   from {
     opacity: 0;
@@ -979,6 +1239,7 @@
 
 @media (prefers-reduced-motion: reduce) {
   .map-dot.is-checked,
+  .picker-panel,
   .fade-in {
     animation: none;
   }
