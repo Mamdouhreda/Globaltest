@@ -34,6 +34,8 @@ type urlRequest struct {
 	// Video asks for a scroll video as well as the screenshot. It is opt-in
 	// since it adds time and cost to every test.
 	Video bool `json:"video,omitempty"`
+	// Turnstile is the token from the frontend's bot check, one per request.
+	Turnstile string `json:"turnstile,omitempty"`
 }
 
 type urlResponse struct {
@@ -113,7 +115,7 @@ func receiveURL(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	receiveURLFargate(w, r, request.URL, request.Region, request.Video)
+	receiveURLFargate(w, r, request.URL, request.Region, request.Video, request.Turnstile)
 }
 
 func receiveURLLocal(w http.ResponseWriter, url string, video bool) {
@@ -141,7 +143,7 @@ func receiveURLLocal(w http.ResponseWriter, url string, video bool) {
 	json.NewEncoder(w).Encode(response)
 }
 
-func receiveURLFargate(w http.ResponseWriter, r *http.Request, url, region string, video bool) {
+func receiveURLFargate(w http.ResponseWriter, r *http.Request, url, region string, video bool, turnstile string) {
 	cfg, ok := loadRegionConfigs()[region]
 	if !ok {
 		http.Error(w, fmt.Sprintf("unknown region %q (expected one of: %s)", region, strings.Join(testingRegions, ", ")), http.StatusBadRequest)
@@ -153,6 +155,10 @@ func receiveURLFargate(w http.ResponseWriter, r *http.Request, url, region strin
 	testID, err := newTestID()
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	if !allowTest(w, r, turnstile) {
 		return
 	}
 

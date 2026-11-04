@@ -13,6 +13,12 @@ This is **Phase 1 — infrastructure only**: VPC, ECS cluster, ECR repo, IAM rol
 
 Once tasks actually run, real costs are Fargate compute (billed per second while a task runs), plus small storage costs for any ECR images. Nothing here runs continuously.
 
+## Rate limits
+
+Starting a test is limited per IP, per network range and globally per day, using counters in the on-demand `globaltest-rate-limits` DynamoDB table (see `backend/ratelimit.go`). Change the limits with the `rate_limit_*` variables in `terraform.tfvars`; `terraform apply` is all it takes.
+
+The Cloudflare Turnstile bot check needs both keys: the public site key in `frontend/.env.production`, and the secret as `turnstile_secret_key` in `terraform.tfvars`. Deploy the frontend first, then apply the secret, or tests will be refused in between.
+
 ## Structure
 
 ```

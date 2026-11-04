@@ -24,6 +24,7 @@ import yahooUsVideo from './assets/example-yahoo-us.mp4';
 import './guide';
 import { Logo } from './logo';
 import './styles.css';
+import { getTurnstileToken } from './turnstile';
 
 const API_URL = import.meta.env.VITE_API_URL ?? 'http://127.0.0.1:8080';
 
@@ -167,6 +168,10 @@ async function request(input: string, failure: string, init?: RequestInit, rejec
   if (response.status === 400 && rejected) {
     throw new TestError(rejected);
   }
+  // The backend writes these two for the user: a daily limit or the bot check.
+  if (response.status === 403 || response.status === 429) {
+    throw new TestError((await response.text()).trim());
+  }
   if (!response.ok) {
     console.error(await response.text());
     throw new TestError(failure);
@@ -216,12 +221,19 @@ function describeSiteError(error: string | undefined): string {
 // tests start a Fargate task and are polled; the local test returns its
 // results directly.
 async function runTest(url: string, region: string, video: boolean): Promise<RegionResult> {
+  let turnstile: string | undefined;
+  try {
+    turnstile = await getTurnstileToken();
+  } catch {
+    throw new TestError("The bot check couldn't run. Refresh the page and try again.");
+  }
+
   const response = await request(`${API_URL}/url`, "Couldn't start a browser here. Try again in a moment.", {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
     },
-    body: JSON.stringify({ url, region, video }),
+    body: JSON.stringify({ url, region, video, turnstile }),
   }, 'Only public websites can be tested.');
 
   const data = (await response.json()) as UrlResponse;

@@ -4,6 +4,43 @@ variable "project_name" {
   default     = "globaltest"
 }
 
+variable "rate_limit_per_ip" {
+  description = "Tests one IP address may start per day. Each country in a run is one test."
+  type        = number
+  default     = 5
+}
+
+variable "rate_limit_per_range" {
+  description = "Tests one network range (IPv4 /24, IPv6 /48) may start per day."
+  type        = number
+  default     = 20
+}
+
+variable "rate_limit_global" {
+  description = "Tests everyone combined may start per day. This is what caps the bill."
+  type        = number
+  default     = 500
+}
+
+variable "turnstile_secret_key" {
+  description = "Cloudflare Turnstile secret key. Set it in terraform.tfvars, which is gitignored. Left empty, the bot check is off."
+  type        = string
+  default     = ""
+  sensitive   = true
+}
+
+variable "budget_alert_email" {
+  description = "Where to send the daily AWS budget alert. Left empty, no budget is created."
+  type        = string
+  default     = ""
+}
+
+variable "daily_budget_usd" {
+  description = "Daily AWS spend that triggers the budget alert."
+  type        = string
+  default     = "5"
+}
+
 variable "environment" {
   description = "Environment name (e.g. dev, prod)."
   type        = string

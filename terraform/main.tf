@@ -235,6 +235,11 @@ data "aws_iam_policy_document" "backend_task_permissions" {
     resources = ["${aws_s3_bucket.results.arn}/results/*"]
   }
 
+  statement {
+    actions   = ["dynamodb:UpdateItem"]
+    resources = [aws_dynamodb_table.rate_limits.arn]
+  }
+
   # Without ListBucket, S3 answers a missing key with 403 instead of 404,
   # which would make "task not finished yet" indistinguishable from a real
   # permissions failure.
@@ -342,6 +347,12 @@ resource "aws_lambda_function" "backend" {
 
       RESULTS_BUCKET        = aws_s3_bucket.results.id
       RESULTS_BUCKET_REGION = var.regions.us
+
+      RATE_LIMIT_TABLE     = aws_dynamodb_table.rate_limits.name
+      RATE_LIMIT_PER_IP    = var.rate_limit_per_ip
+      RATE_LIMIT_PER_RANGE = var.rate_limit_per_range
+      RATE_LIMIT_GLOBAL    = var.rate_limit_global
+      TURNSTILE_SECRET_KEY = var.turnstile_secret_key
     }
   }
 
@@ -388,6 +399,15 @@ resource "aws_apigatewayv2_route" "backend" {
   target    = "integrations/${aws_apigatewayv2_integration.backend.id}"
 }
 
+# Routes to the same Lambda as the catch-all. It exists so starting a test,
+# which costs money, can be throttled harder than /result polling.
+resource "aws_apigatewayv2_route" "backend_start_test" {
+  provider  = aws.us
+  api_id    = aws_apigatewayv2_api.backend.id
+  route_key = "POST /url"
+  target    = "integrations/${aws_apigatewayv2_integration.backend.id}"
+}
+
 # Access logs so there's a record of who hit the API (source IP, route,
 # status). Short retention keeps storage cost at effectively $0.
 resource "aws_cloudwatch_log_group" "backend_apigw_access" {
@@ -403,6 +423,20 @@ resource "aws_apigatewayv2_stage" "backend" {
   api_id      = aws_apigatewayv2_api.backend.id
   name        = "$default"
   auto_deploy = true
+
+  # Flood guards, shared by all visitors; the per-visitor limits are in
+  # backend/ratelimit.go. Each country being tested polls every 3s, so the
+  # default leaves room for a few dozen tests running at once.
+  default_route_settings {
+    throttling_rate_limit  = 50
+    throttling_burst_limit = 100
+  }
+
+  route_settings {
+    route_key              = aws_apigatewayv2_route.backend_start_test.route_key
+    throttling_rate_limit  = 5
+    throttling_burst_limit = 20
+  }
 
   access_log_settings {
     destination_arn = aws_cloudwatch_log_group.backend_apigw_access.arn
@@ -490,6 +524,48 @@ resource "aws_s3_bucket_policy" "frontend" {
       Resource  = "${aws_s3_bucket.frontend.arn}/*"
     }]
   })
+}
+
+# ---------------------------------------------------------------------------
+# Daily test counters for backend/ratelimit.go. On-demand so an idle table
+# costs $0, unlike Redis; rows delete themselves through TTL.
+# ---------------------------------------------------------------------------
+resource "aws_dynamodb_table" "rate_limits" {
+  provider     = aws.us
+  name         = "${var.project_name}-rate-limits"
+  billing_mode = "PAY_PER_REQUEST"
+  hash_key     = "id"
+
+  attribute {
+    name = "id"
+    type = "S"
+  }
+
+  ttl {
+    attribute_name = "expiresAt"
+    enabled        = true
+  }
+
+  tags = var.tags
+}
+
+# Emails when a day's actual AWS spend passes the limit. Budgets are free.
+resource "aws_budgets_budget" "daily" {
+  provider     = aws.us
+  count        = var.budget_alert_email == "" ? 0 : 1
+  name         = "${var.project_name}-daily"
+  budget_type  = "COST"
+  limit_amount = var.daily_budget_usd
+  limit_unit   = "USD"
+  time_unit    = "DAILY"
+
+  notification {
+    comparison_operator        = "GREATER_THAN"
+    threshold                  = 100
+    threshold_type             = "PERCENTAGE"
+    notification_type          = "ACTUAL"
+    subscriber_email_addresses = [var.budget_alert_email]
+  }
 }
 
 # ---------------------------------------------------------------------------

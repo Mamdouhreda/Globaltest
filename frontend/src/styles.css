@@ -1237,6 +1237,15 @@
   }
 }
 
+/* Empty and invisible unless Cloudflare needs the visitor to click. */
+.turnstile-box {
+  position: fixed;
+  right: 16px;
+  bottom: 16px;
+  z-index: 50;
+  max-width: calc(100vw - 32px);
+}
+
 @media (prefers-reduced-motion: reduce) {
   .map-dot.is-checked,
   .picker-panel,
