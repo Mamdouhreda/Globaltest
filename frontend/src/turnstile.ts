@@ -56,16 +56,6 @@ async function issueToken(): Promise<string> {
   });
 }
 
-let queue: Promise<unknown> = Promise.resolve();
-
-// A token only passes once and a test sends one request per country, so each
-// request gets its own. They're issued one at a time so a visitor is never
-// shown several checkboxes at once.
-export function getTurnstileToken(): Promise<string | undefined> {
-  if (!SITE_KEY) {
-    return Promise.resolve(undefined);
-  }
-  const token = queue.then(issueToken);
-  queue = token.catch(() => undefined);
-  return token;
+export async function getTurnstileToken(): Promise<string | undefined> {
+  return SITE_KEY ? issueToken() : undefined;
 }

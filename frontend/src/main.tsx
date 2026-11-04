@@ -216,17 +216,54 @@ function describeSiteError(error: string | undefined): string {
   return "The site couldn't be loaded from here.";
 }
 
+// The backend's pass lasts 10 minutes; stop using it a little before that.
+const BOT_PASS_LIFETIME_MS = 9 * 60_000;
+
+async function fetchBotPass(): Promise<string | undefined> {
+  let token: string | undefined;
+  try {
+    token = await getTurnstileToken();
+  } catch {
+    throw new TestError("The bot check couldn't run. Refresh the page and try again.");
+  }
+  if (token === undefined) {
+    return undefined;
+  }
+  const response = await request(`${API_URL}/verify`, "The bot check couldn't run. Try again in a moment.", {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ token }),
+  });
+  return ((await response.json()) as { pass: string }).pass;
+}
+
+let botPass: { value: Promise<string | undefined>; expiresAt: number } | undefined;
+
+// Every country in a run shares this promise, so a visitor does the bot check
+// once, not once per country. A failed check isn't kept, so the next run can
+// try again.
+function getBotPass(): Promise<string | undefined> {
+  if (!botPass || Date.now() >= botPass.expiresAt) {
+    const value = fetchBotPass();
+    const current = { value, expiresAt: Date.now() + BOT_PASS_LIFETIME_MS };
+    botPass = current;
+    value.catch(() => {
+      if (botPass === current) {
+        botPass = undefined;
+      }
+    });
+  }
+  return botPass.value;
+}
+
 // Runs one test in one region, with a screenshot and, if asked for, a scroll
 // video. Regional
 // tests start a Fargate task and are polled; the local test returns its
 // results directly.
 async function runTest(url: string, region: string, video: boolean): Promise<RegionResult> {
-  let turnstile: string | undefined;
-  try {
-    turnstile = await getTurnstileToken();
-  } catch {
-    throw new TestError("The bot check couldn't run. Refresh the page and try again.");
-  }
+  const turnstile = await getBotPass();
 
   const response = await request(`${API_URL}/url`, "Couldn't start a browser here. Try again in a moment.", {
     method: 'POST',
