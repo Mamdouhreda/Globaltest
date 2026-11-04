@@ -83,8 +83,8 @@ func recordScroll(ctx context.Context) ([]byte, error) {
 		page.StartScreencast().
 			WithFormat(page.ScreencastFormatJpeg).
 			WithQuality(90).
-			WithMaxWidth(1920).
-			WithMaxHeight(1080),
+			WithMaxWidth(1600).
+			WithMaxHeight(900),
 		chromedp.Evaluate(scrollScript, &done, func(p *runtime.EvaluateParams) *runtime.EvaluateParams {
 			return p.WithAwaitPromise(true)
 		}),
@@ -152,7 +152,7 @@ func encodeMP4(ctx context.Context, frames []screencastFrame, ended time.Time) (
 	cmd := exec.CommandContext(ctx, "ffmpeg", "-hide_banner", "-loglevel", "error",
 		"-framerate", strconv.Itoa(videoFPS), "-i", filepath.Join(dir, "frame-%05d.jpg"),
 		"-vf", "scale=trunc(iw/2)*2:trunc(ih/2)*2",
-		"-c:v", "libx264", "-preset", "fast", "-crf", "22",
+		"-c:v", "libx264", "-preset", "veryfast", "-crf", "24",
 		"-pix_fmt", "yuv420p", "-movflags", "+faststart",
 		out,
 	)

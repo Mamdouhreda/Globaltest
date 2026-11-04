@@ -55,7 +55,7 @@ func main() {
 
 	// Room for the page load, the scroll recording (at most ~14s) and the
 	// MP4 encode.
-	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 90*time.Second)
 	defer cancel()
 
 	// Recording a scroll video is opt-in (RECORD_VIDEO=true), since it adds
@@ -133,19 +133,27 @@ func captureSite(ctx context.Context, siteURL string, recordVideo bool) (capture
 	taskCtx, taskCancel := chromedp.NewContext(allocCtx)
 	defer taskCancel()
 
-	var screenshot []byte
+	var (
+		screenshot   []byte
+		responseTime time.Duration
+	)
 	start := time.Now()
 
 	if err := chromedp.Run(taskCtx,
 		chromedp.EmulateViewport(1280, 720, chromedp.EmulateScale(2)),
 		chromedp.Navigate(siteURL),
 		chromedp.WaitReady("body", chromedp.ByQuery),
+		chromedp.ActionFunc(func(context.Context) error {
+			responseTime = time.Since(start)
+			return nil
+		}),
+		// Pages fill in images and news after they report ready, so give them
+		// a moment before the screenshot.
+		chromedp.Sleep(screenshotSettle),
 		chromedp.CaptureScreenshot(&screenshot),
 	); err != nil {
 		return captureResult{}, fmt.Errorf("failed to capture URL in Chrome: %w", err)
 	}
-
-	responseTime := time.Since(start)
 
 	if !recordVideo {
 		return captureResult{responseTime: responseTime, png: screenshot}, nil
@@ -234,8 +242,8 @@ func recordScroll(ctx context.Context) ([]byte, error) {
 		page.StartScreencast().
 			WithFormat(page.ScreencastFormatJpeg).
 			WithQuality(90).
-			WithMaxWidth(1920).
-			WithMaxHeight(1080),
+			WithMaxWidth(1600).
+			WithMaxHeight(900),
 		chromedp.Evaluate(scrollScript, &done, func(p *runtime.EvaluateParams) *runtime.EvaluateParams {
 			return p.WithAwaitPromise(true)
 		}),
@@ -249,6 +257,10 @@ func recordScroll(ctx context.Context) ([]byte, error) {
 	defer mu.Unlock()
 	return encodeMP4(ctx, frames, ended)
 }
+
+// screenshotSettle is how long a page gets to finish drawing before its
+// screenshot, after its load time has been measured.
+const screenshotSettle = 3 * time.Second
 
 // videoFPS is the frame rate of the scroll video.
 const videoFPS = 24
@@ -303,7 +315,7 @@ func encodeMP4(ctx context.Context, frames []screencastFrame, ended time.Time) (
 	cmd := exec.CommandContext(ctx, "ffmpeg", "-hide_banner", "-loglevel", "error",
 		"-framerate", strconv.Itoa(videoFPS), "-i", filepath.Join(dir, "frame-%05d.jpg"),
 		"-vf", "scale=trunc(iw/2)*2:trunc(ih/2)*2",
-		"-c:v", "libx264", "-preset", "fast", "-crf", "22",
+		"-c:v", "libx264", "-preset", "veryfast", "-crf", "24",
 		"-pix_fmt", "yuv420p", "-movflags", "+faststart",
 		out,
 	)

@@ -262,6 +262,10 @@ func receiveResult(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(res)
 }
 
+// screenshotSettle is how long a page gets to finish drawing before its
+// screenshot, after its load time has been measured.
+const screenshotSettle = 3 * time.Second
+
 type captureResult struct {
 	responseTime time.Duration
 	screenshot   []byte
@@ -284,7 +288,10 @@ func captureSite(siteURL string, recordVideo bool) (captureResult, error) {
 	ctx, cancel := chromedp.NewContext(allocCtx)
 	defer cancel()
 
-	var screenshot []byte
+	var (
+		screenshot   []byte
+		responseTime time.Duration
+	)
 	start := time.Now()
 	// wait for the page to load and capture the screenshot
 
@@ -292,13 +299,20 @@ func captureSite(siteURL string, recordVideo bool) (captureResult, error) {
 		chromedp.EmulateViewport(1280, 720, chromedp.EmulateScale(2)),
 		chromedp.Navigate(siteURL),
 		chromedp.WaitReady("body", chromedp.ByQuery),
+		chromedp.ActionFunc(func(context.Context) error {
+			responseTime = time.Since(start)
+			return nil
+		}),
+		// Pages fill in images and news after they report ready, so give them
+		// a moment before the screenshot.
+		chromedp.Sleep(screenshotSettle),
 		chromedp.CaptureScreenshot(&screenshot),
 	); err != nil {
 		return captureResult{}, fmt.Errorf("failed to capture URL in Chrome: %w", err)
 	}
 
 	result := captureResult{
-		responseTime: time.Since(start),
+		responseTime: responseTime,
 		screenshot:   screenshot,
 	}
 
