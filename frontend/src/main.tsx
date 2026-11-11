@@ -62,19 +62,20 @@ type Pin = { x: number; y: number };
 // soon marks a country with an AWS region but no browsers deployed yet: it is
 // shown but can't be picked. Take it off once the region is live (see
 // "Structure" in terraform/README.md for what a new region needs).
-type Region = { value: string; label: string; flag: React.ReactNode; area: string; keywords?: string; pin?: Pin; soon?: boolean };
+// city is where the browsers run, for the lines a running test shows.
+type Region = { value: string; label: string; flag: React.ReactNode; area: string; city?: string; keywords?: string; pin?: Pin; soon?: boolean };
 
 // Flags are SVGs because Windows has no flag emoji.
 const COUNTRIES: Region[] = [
   // Pins sit on the cities the browsers run in: London, Northern Virginia,
   // Frankfurt, Sydney, Dublin, Mumbai and São Paulo.
-  { value: 'uk', label: 'United Kingdom', flag: <GB className="flag" />, area: 'Europe', keywords: 'Britain England', pin: { x: 49.97, y: 20.96 } },
-  { value: 'us', label: 'United States', flag: <US className="flag" />, area: 'Americas', keywords: 'USA America', pin: { x: 28.47, y: 30.15 } },
-  { value: 'germany', label: 'Germany', flag: <DE className="flag" />, area: 'Europe', pin: { x: 52.42, y: 21.99 } },
-  { value: 'australia', label: 'Australia', flag: <AU className="flag" />, area: 'Asia Pacific', pin: { x: 92.0, y: 83.75 } },
-  { value: 'ireland', label: 'Ireland', flag: <IE className="flag" />, area: 'Europe', pin: { x: 48.25, y: 19.63 } },
-  { value: 'india', label: 'India', flag: <IN className="flag" />, area: 'Asia Pacific', pin: { x: 70.25, y: 44.78 } },
-  { value: 'brazil', label: 'Brazil', flag: <BR className="flag" />, area: 'Americas', pin: { x: 37.06, y: 76.18 } },
+  { value: 'uk', label: 'United Kingdom', flag: <GB className="flag" />, area: 'Europe', city: 'London', keywords: 'Britain England', pin: { x: 49.97, y: 20.96 } },
+  { value: 'us', label: 'United States', flag: <US className="flag" />, area: 'Americas', city: 'Virginia', keywords: 'USA America', pin: { x: 28.47, y: 30.15 } },
+  { value: 'germany', label: 'Germany', flag: <DE className="flag" />, area: 'Europe', city: 'Frankfurt', pin: { x: 52.42, y: 21.99 } },
+  { value: 'australia', label: 'Australia', flag: <AU className="flag" />, area: 'Asia Pacific', city: 'Sydney', pin: { x: 92.0, y: 83.75 } },
+  { value: 'ireland', label: 'Ireland', flag: <IE className="flag" />, area: 'Europe', city: 'Dublin', pin: { x: 48.25, y: 19.63 } },
+  { value: 'india', label: 'India', flag: <IN className="flag" />, area: 'Asia Pacific', city: 'Mumbai', pin: { x: 70.25, y: 44.78 } },
+  { value: 'brazil', label: 'Brazil', flag: <BR className="flag" />, area: 'Americas', city: 'São Paulo', pin: { x: 37.06, y: 76.18 } },
   // More countries with an AWS region, on the region's city or, where
   // AWS names only the country, its largest city.
   { value: 'bahrain', label: 'Bahrain', flag: <BH className="flag" />, area: 'Middle East and Africa', pin: { x: 64.04, y: 39.65 }, soon: true },
@@ -100,7 +101,7 @@ const COUNTRIES: Region[] = [
 
 const REGIONS: Region[] = [
   // The local option runs Chrome on the dev machine, so only offer it in dev.
-  ...(import.meta.env.DEV ? [{ value: '', label: 'Local', flag: '💻', area: 'This computer' }] : []),
+  ...(import.meta.env.DEV ? [{ value: '', label: 'Local', flag: '💻', area: 'This computer', city: 'your computer' }] : []),
   ...COUNTRIES,
 ];
 
@@ -150,6 +151,9 @@ const EXAMPLES: Example[] = [
   example('Facebook', 'facebook.com', '4 November 2026', [facebookUs, facebookBrazil, facebookGermany, facebookIndia], [1364, 1687, 1035, 2730]),
   example('MSN', 'msn.com', '4 November 2026', [msnUs, msnBrazil, msnGermany, msnIndia], [6903, 1527, 1233, 1241], [msnUsVideo, msnBrazilVideo, msnGermanyVideo, msnIndiaVideo]),
 ];
+
+// The title in index.html, which a running test swaps for its progress.
+const PAGE_TITLE = document.title;
 
 const POLL_INTERVAL_MS = 3000;
 const POLL_TIMEOUT_MS = 120_000;
@@ -881,6 +885,41 @@ function App() {
 
   const resultRegions = REGIONS.filter((region) => region.value in results);
   const finished = resultRegions.filter((region) => results[region.value].state !== 'running').length;
+  const loaded = resultRegions.filter((region) => results[region.value].state === 'ok').length;
+
+  // A test takes up to a minute, so visitors often switch tabs while it runs.
+  // The tab title counts the countries as they finish, and once all have,
+  // says so until the visitor comes back.
+  useEffect(() => {
+    const total = resultRegions.length;
+    if (total === 0) {
+      document.title = PAGE_TITLE;
+      return;
+    }
+    if (finished < total) {
+      document.title = `(${finished}/${total}) Testing… · GlobalTest`;
+      return;
+    }
+    const watching = () => document.visibilityState === 'visible' && document.hasFocus();
+    if (watching()) {
+      document.title = PAGE_TITLE;
+      return;
+    }
+    document.title = loaded > 0 ? '✓ Results ready · GlobalTest' : "✕ Didn't load · GlobalTest";
+    function onReturn() {
+      if (watching()) {
+        document.title = PAGE_TITLE;
+        stopListening();
+      }
+    }
+    function stopListening() {
+      document.removeEventListener('visibilitychange', onReturn);
+      window.removeEventListener('focus', onReturn);
+    }
+    document.addEventListener('visibilitychange', onReturn);
+    window.addEventListener('focus', onReturn);
+    return stopListening;
+  }, [resultRegions.length, finished, loaded]);
 
   let fastest: { region: Region; ms: number } | undefined;
   for (const region of resultRegions) {
@@ -892,7 +931,6 @@ function App() {
 
   let summary = `${finished} of ${resultRegions.length} countries finished`;
   if (finished === resultRegions.length) {
-    const loaded = resultRegions.filter((region) => results[region.value].state === 'ok').length;
     if (loaded === 0) {
       summary = "The site didn't load from any country";
     } else if (fastest && loaded > 1) {
@@ -1042,11 +1080,12 @@ function App() {
             start there first.
           </p>
           <div className="results-grid">
-            {resultRegions.map((region) => (
+            {resultRegions.map((region, index) => (
               <ResultCard
                 key={region.value}
                 region={region}
                 result={results[region.value]}
+                order={index}
                 onRetry={() => retryRegion(region.value)}
                 onZoom={(shot, showVideo) => zoom(resultShots, shot, showVideo)}
               />
@@ -1113,20 +1152,50 @@ function App() {
   );
 }
 
-function RunningMeter({ region, startedAt }: { region: Region; startedAt: number }) {
+// What a running card says while it waits, a line at a time, to keep the
+// wait light. A test reports nothing until it's done, so the lines follow the
+// meter's rough timeline: a browser starting, then the page being captured.
+const WAITING_LINES = {
+  starting: [
+    'Packing a browser for {city}…',
+    'Waking up a server in {city}…',
+    'Finding a free desk in {city}…',
+    'Booting Chrome in {city}…',
+  ],
+  capturing: [
+    'Opening your page in {city}…',
+    'Letting the page settle…',
+    'Framing the shot…',
+    'Saying cheese…',
+    'Timing the load…',
+  ],
+  slow: ['Taking the scenic route…', 'Still going. Some pages are slow from far away…'],
+};
+const WAITING_LINE_MS = 2800;
+
+// order is the card's place among the results, so the cards start on
+// different lines and don't all say the same thing at once.
+function RunningMeter({ region, startedAt, order }: { region: Region; startedAt: number; order: number }) {
   const elapsed = useElapsed(startedAt);
   const percent = Math.round(estimateProgress(elapsed) * 100);
 
-  let stage = 'Starting a browser…';
+  let lines = WAITING_LINES.starting;
   if (elapsed > 60_000) {
-    stage = 'Taking longer than usual…';
+    lines = WAITING_LINES.slow;
   } else if (elapsed > 10_000) {
-    stage = 'Capturing your site…';
+    lines = WAITING_LINES.capturing;
   }
+  const line = lines[(Math.floor(elapsed / WAITING_LINE_MS) + order) % lines.length].replace(
+    '{city}',
+    region.city ?? region.label,
+  );
 
   return (
-    <div className="flex size-full flex-col items-center justify-center gap-2 px-4 py-3 text-center">
-      <p className="text-xs font-semibold text-slate-800">{stage}</p>
+    <div className="flex size-full flex-col items-center justify-center gap-2.5 px-4 py-3 text-center">
+      <Twinkle />
+      <p key={line} className="waiting-line text-sm font-semibold text-slate-800">
+        {line}
+      </p>
       <div
         role="progressbar"
         aria-label={`Test progress in ${region.label}`}
@@ -1142,14 +1211,35 @@ function RunningMeter({ region, startedAt }: { region: Region; startedAt: number
   );
 }
 
+// A few sparkles twinkling out of step, to show a running test is alive.
+function Twinkle() {
+  return (
+    <span className="twinkle" aria-hidden>
+      <Sparkle className="twinkle-star twinkle-main" />
+      <Sparkle className="twinkle-star twinkle-small" />
+      <Sparkle className="twinkle-star twinkle-tiny" />
+    </span>
+  );
+}
+
+function Sparkle({ className }: { className: string }) {
+  return (
+    <svg viewBox="0 0 24 24" className={className} fill="currentColor">
+      <path d="M12 0Q13 11 24 12Q13 13 12 24Q11 13 0 12Q11 11 12 0Z" />
+    </svg>
+  );
+}
+
 function ResultCard({
   region,
   result,
+  order,
   onRetry,
   onZoom,
 }: {
   region: Region;
   result: RegionResult;
+  order: number;
   onRetry: () => void;
   onZoom: (shot: Shot, showVideo: boolean) => void;
 }) {
@@ -1174,7 +1264,7 @@ function ResultCard({
         {result.state === 'error' && <span className="status bg-rose-100 text-rose-900">Failed</span>}
       </header>
       <div className="result-body bg-white/50">
-        {result.state === 'running' && <RunningMeter region={region} startedAt={result.startedAt} />}
+        {result.state === 'running' && <RunningMeter region={region} startedAt={result.startedAt} order={order} />}
         {result.state === 'ok' &&
           (screenshot ? (
             <button

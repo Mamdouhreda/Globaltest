@@ -576,6 +576,47 @@
     transition: width 300ms linear;
   }
 
+  /* Sparkles twinkling on a running test's card: a big one with two small
+     ones beside it, each on its own beat */
+  .twinkle {
+    position: relative;
+    display: block;
+    width: 56px;
+    height: 56px;
+  }
+  .twinkle-star {
+    position: absolute;
+    animation: twinkle 1.6s ease-in-out infinite;
+  }
+  .twinkle-main {
+    inset: 10px;
+    color: #fe4e2b;
+    filter: drop-shadow(0 0 8px rgb(254 78 43 / 0.45));
+  }
+  .twinkle-small {
+    top: 0;
+    right: 0;
+    width: 14px;
+    height: 14px;
+    color: #ff7d63;
+    animation-duration: 1.2s;
+    animation-delay: -0.4s;
+  }
+  .twinkle-tiny {
+    bottom: 3px;
+    left: 3px;
+    width: 10px;
+    height: 10px;
+    color: #ffb199;
+    animation-duration: 1.4s;
+    animation-delay: -0.9s;
+  }
+
+  /* Each new waiting line rises into place */
+  .waiting-line {
+    animation: waiting-line 350ms ease-out;
+  }
+
   /* Enlarged screenshot */
   .screenshot-dialog {
     margin: auto;
@@ -1835,11 +1876,32 @@
   }
 }
 
+@keyframes twinkle {
+  0%,
+  100% {
+    transform: scale(0.6) rotate(0deg);
+    opacity: 0.5;
+  }
+  50% {
+    transform: scale(1) rotate(45deg);
+    opacity: 1;
+  }
+}
+
+@keyframes waiting-line {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .map-dot.is-checked,
   .reach-dot.is-active,
   .picker-panel,
-  .fade-in {
+  .fade-in,
+  .twinkle-star,
+  .waiting-line {
     animation: none;
   }
   .meter-fill {
