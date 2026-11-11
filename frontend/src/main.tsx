@@ -1,4 +1,4 @@
-import React, { useEffect, useId, useRef, useState } from 'react';
+import React, { useEffect, useId, useLayoutEffect, useRef, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import { AE, AU, BH, BR, CA, CH, DE, ES, FR, GB, HK, ID, IE, IN, IT, JP, KR, MX, MY, NZ, SE, SG, TH, TW, US, ZA } from 'country-flag-icons/react/3x2';
 import facebookBrazil from './assets/example-facebook-brazil.png';
@@ -443,6 +443,7 @@ function CountryPicker({
       >
         <button
           ref={triggerRef}
+          data-tour="countries"
           type="button"
           onClick={() => (open ? close() : setOpen(true))}
           aria-expanded={open}
@@ -603,6 +604,7 @@ function CountryPicker({
 function VideoToggle({ recordVideo, onChange }: { recordVideo: boolean; onChange: (recordVideo: boolean) => void }) {
   return (
     <label
+      data-tour="video"
       title="Also record a video of the whole page scrolling. About 10 s longer."
       className={`country-chip box-chip cursor-pointer ${recordVideo ? 'is-checked' : ''}`}
     >
@@ -616,6 +618,185 @@ function VideoToggle({ recordVideo, onChange }: { recordVideo: boolean; onChange
       Video
       <span className="hidden text-xs font-normal text-slate-600 sm:inline">+10 s</span>
     </label>
+  );
+}
+
+// A short tour of the test box. Each step lights up one part of the real
+// page, found by its data-tour name, and says what it does.
+const TOUR_STEPS = [
+  {
+    target: 'address',
+    title: 'Type a website',
+    text: "Any public address works, like example.com. You don't need an account.",
+  },
+  {
+    target: 'countries',
+    title: 'Choose the countries',
+    text: 'Open this to pick where to test from. A real Chrome browser opens your site in each one.',
+  },
+  {
+    target: 'video',
+    title: 'Add a video, if you like',
+    text: 'Every test takes a screenshot. Turn on Video to also record the whole page scrolling. It takes about 10 s longer.',
+  },
+  {
+    target: 'start',
+    title: 'Start the test',
+    text: 'Press the arrow or Enter. Each country gets a card below with its screenshot and load time, usually in under a minute.',
+  },
+];
+
+// Room the card needs under a part before it goes above it instead.
+const TOUR_CARD_ROOM = 230;
+
+function Tour({ onClose, onTry }: { onClose: () => void; onTry: () => void }) {
+  const [index, setIndex] = useState(0);
+  const [rect, setRect] = useState<DOMRect>();
+  const [radius, setRadius] = useState('16px');
+  const cardRef = useRef<HTMLDivElement>(null);
+  const titleId = useId();
+  const textId = useId();
+  const step = TOUR_STEPS[index];
+  const last = index === TOUR_STEPS.length - 1;
+
+  // Bring the step's part into view, and keep the light on it as the page
+  // scrolls or resizes.
+  useLayoutEffect(() => {
+    const element = document.querySelector<HTMLElement>(`[data-tour="${step.target}"]`);
+    if (!element) {
+      return;
+    }
+    element.scrollIntoView({ block: 'center', behavior: REDUCE_MOTION ? 'auto' : 'smooth' });
+    const own = parseFloat(getComputedStyle(element).borderTopLeftRadius) || 8;
+    setRadius(`${Math.min(own, 28) + 6}px`);
+    const update = () => setRect(element.getBoundingClientRect());
+    update();
+    window.addEventListener('scroll', update, { capture: true, passive: true });
+    window.addEventListener('resize', update);
+    return () => {
+      window.removeEventListener('scroll', update, { capture: true });
+      window.removeEventListener('resize', update);
+    };
+  }, [step.target]);
+
+  // The card can only take focus once it's placed and showing.
+  const placed = rect !== undefined;
+  useEffect(() => {
+    if (placed) {
+      cardRef.current?.focus();
+    }
+  }, [index, placed]);
+
+  // Esc and the arrow keys work wherever focus is while the tour is open.
+  useEffect(() => {
+    function onKey(event: KeyboardEvent) {
+      if (event.key === 'Escape') {
+        event.preventDefault();
+        onClose();
+      } else if (event.key === 'ArrowRight' && !last) {
+        setIndex(index + 1);
+      } else if (event.key === 'ArrowLeft' && index > 0) {
+        setIndex(index - 1);
+      }
+    }
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, [index, last, onClose]);
+
+  function onKeyDown(event: React.KeyboardEvent) {
+    if (event.key === 'Tab') {
+      // Keep the keyboard inside the card while the tour is open.
+      const buttons = [...(cardRef.current?.querySelectorAll('button') ?? [])];
+      const at = buttons.indexOf(document.activeElement as HTMLButtonElement);
+      event.preventDefault();
+      buttons[(at + (event.shiftKey ? -1 : 1) + buttons.length) % buttons.length]?.focus();
+    }
+  }
+
+  // The card sits under the lit part, or above it when there's no room,
+  // and stays inside the screen.
+  let cardStyle: React.CSSProperties = { visibility: 'hidden' };
+  if (rect) {
+    const width = Math.min(340, window.innerWidth - 32);
+    const left = Math.min(Math.max(16, rect.left + rect.width / 2 - width / 2), window.innerWidth - 16 - width);
+    cardStyle =
+      window.innerHeight - rect.bottom >= TOUR_CARD_ROOM
+        ? { left, width, top: rect.bottom + 16 }
+        : { left, width, bottom: window.innerHeight - rect.top + 16 };
+  }
+
+  return (
+    <div className="tour" onKeyDown={onKeyDown}>
+      {rect && (
+        <div
+          className="tour-spot"
+          style={{ top: rect.top - 6, left: rect.left - 6, width: rect.width + 12, height: rect.height + 12, borderRadius: radius }}
+          aria-hidden
+        />
+      )}
+      <div
+        ref={cardRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={titleId}
+        aria-describedby={textId}
+        tabIndex={-1}
+        className="tour-card"
+        style={cardStyle}
+      >
+        <p className="tour-count">
+          Step {index + 1} of {TOUR_STEPS.length}
+        </p>
+        <h2 id={titleId} className="mt-1 text-[17px] font-bold text-slate-900">
+          {step.title}
+        </h2>
+        <p id={textId} className="mt-1.5 text-sm leading-relaxed text-slate-700">
+          {step.text}
+        </p>
+        <div className="mt-4 flex items-center gap-2">
+          <span className="tour-dots" aria-hidden>
+            {TOUR_STEPS.map((item, itemIndex) => (
+              <i key={item.target} className={itemIndex === index ? 'is-active' : ''} />
+            ))}
+          </span>
+          <span className="ml-auto flex items-center gap-2">
+            {last ? (
+              <>
+                <button type="button" onClick={onClose} className="retry-button">
+                  Done
+                </button>
+                <button type="button" onClick={onTry} className="picker-done">
+                  Try example.com
+                </button>
+              </>
+            ) : (
+              <>
+                <button type="button" onClick={onClose} className="text-button rounded-full px-2.5 py-1 text-sm font-semibold">
+                  Skip
+                </button>
+                {index > 0 && (
+                  <button type="button" onClick={() => setIndex(index - 1)} className="retry-button">
+                    Back
+                  </button>
+                )}
+                <button type="button" onClick={() => setIndex(index + 1)} className="picker-done">
+                  Next
+                </button>
+              </>
+            )}
+          </span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function TourIcon() {
+  return (
+    <svg viewBox="0 0 24 24" className="size-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+      <circle cx="12" cy="12" r="9" />
+      <path d="M12 16v-4.5M12 8h.01" />
+    </svg>
   );
 }
 
@@ -782,6 +963,9 @@ function App() {
   const [zoomed, setZoomed] = useState<{ shots: Shot[]; index: number; showVideo: boolean } | null>(null);
   const [exampleIndex, setExampleIndex] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
+  const sendRef = useRef<HTMLButtonElement>(null);
+  const tourButtonRef = useRef<HTMLButtonElement>(null);
+  const [touring, setTouring] = useState(false);
   const resultsRef = useRef<HTMLElement>(null);
   const urlErrorId = useId();
   const countryErrorId = useId();
@@ -1003,6 +1187,7 @@ function App() {
               <span className="sr-only">Website address</span>
               <input
                 ref={inputRef}
+                data-tour="address"
                 type="text"
                 inputMode="url"
                 autoFocus
@@ -1032,6 +1217,8 @@ function App() {
                 <VideoToggle recordVideo={recordVideo} onChange={setRecordVideo} />
               </div>
               <button
+                ref={sendRef}
+                data-tour="start"
                 type="submit"
                 disabled={isSubmitting}
                 aria-label={
@@ -1069,8 +1256,28 @@ function App() {
               {checkError}
             </p>
           )}
+
+          <button ref={tourButtonRef} type="button" onClick={() => setTouring(true)} className="tour-link">
+            <TourIcon />
+            New here? Take a quick tour
+          </button>
         </form>
       </div>
+
+      {touring && (
+        <Tour
+          onClose={() => {
+            setTouring(false);
+            requestAnimationFrame(() => tourButtonRef.current?.focus());
+          }}
+          onTry={() => {
+            setUrl('example.com');
+            setUrlError('');
+            setTouring(false);
+            requestAnimationFrame(() => sendRef.current?.focus());
+          }}
+        />
+      )}
 
       {resultRegions.length > 0 && (
         <section ref={resultsRef} aria-labelledby="results-heading" className="relative mx-auto mt-10 w-full max-w-6xl scroll-mt-6">

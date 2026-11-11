@@ -98,47 +98,44 @@
     </noscript>
 
     <div class="guide">
-      <section class="guide-intro reveal">
-        <h2>Test your website from another country</h2>
-        <p>
-          GlobalTest is a free geo testing tool. It opens any public web address in a real Chrome browser in the
-          country you choose, then sends back a screenshot of the page and how long it took to load. Pick several
-          countries and you can compare them side by side.
-        </p>
-        <p>
-          Use it to check what visitors abroad really see: the language, the currency, the cookie banner, a
-          redirect to a local version of the site, or a block page.
-        </p>
-      </section>
-
-      <section>
-        <h2>How it works</h2>
-        <ol class="steps">
-          <li class="reveal">
-            <h3>Enter a website address</h3>
-            <p>Any public address, such as example.com.</p>
-          </li>
-          <li class="reveal">
-            <h3>Choose the countries</h3>
-            <p>Pick every country you want to test from.</p>
-          </li>
-          <li class="reveal">
-            <h3>Get a screenshot and a load time</h3>
-            <p>From each country, usually in under a minute. Select a screenshot to see it at full size.</p>
-          </li>
-        </ol>
-        <p class="reveal">
-          Every test starts a new Chrome browser in a data centre inside the country. The browser opens your page
-          in a desktop window 1280 pixels wide and 720 pixels high, waits for the page to be ready and takes the
-          screenshot.
-        </p>
-      </section>
-
+      <!-- What GlobalTest is, how a test works and where it runs, told once: the map below plays a test
+           step by step, so it doubles as the "how it works". -->
       <section class="reach">
-        <h2>Countries you can test from</h2>
-        <p class="reveal">
-          Your address goes to a real Chrome browser in each city on the map. Each one opens your page and sends
-          back a screenshot and its load time. Pick a country to follow a test.
+        <p class="eyebrow">How it works</p>
+        <h2>Test your website from another country</h2>
+        <p class="reach-lead reveal">
+          GlobalTest is a free geo testing tool. A real Chrome browser in each country opens your page and sends
+          back a screenshot and its load time.
+        </p>
+        <!-- What a visitor abroad might see differently, as chips that read at a glance -->
+        <div class="spot reveal">
+          <p class="spot-title">See what visitors abroad really see</p>
+          <ul class="spot-list">
+            <li>
+              <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9" /><path d="M3 12h18M12 3c2.5 2.7 3.8 5.7 3.8 9s-1.3 6.3-3.8 9c-2.5-2.7-3.8-5.7-3.8-9S9.5 5.7 12 3Z" /></svg>
+              The language
+            </li>
+            <li>
+              <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9" /><path d="M15 8.5c-.8-.9-1.9-1.3-3-1.3-1.8 0-3 1-3 2.3 0 3.2 6 1.6 6 4.8 0 1.4-1.3 2.4-3 2.4-1.3 0-2.5-.5-3.3-1.4M12 5.5v2M12 16.7v1.8" /></svg>
+              The currency
+            </li>
+            <li>
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20.5 12.5A8.5 8.5 0 1 1 11.5 3.5a3 3 0 0 0 4 3.5 3 3 0 0 0 5 5.5Z" /><circle cx="8.5" cy="10" r=".6" /><circle cx="14" cy="14.5" r=".6" /><circle cx="9" cy="15.5" r=".6" /></svg>
+              The cookie banner
+            </li>
+            <li>
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h11a4 4 0 0 1 0 8H8M8 11l-4 4 4 4" /></svg>
+              A local redirect
+            </li>
+            <li>
+              <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9" /><path d="m5.6 5.6 12.8 12.8" /></svg>
+              A block page
+            </li>
+          </ul>
+        </div>
+        <p class="reach-hint reveal">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 11V5.5a1.5 1.5 0 0 1 3 0V10m0-.5a1.5 1.5 0 0 1 3 0v1m0-.5a1.5 1.5 0 0 1 3 0V15a6 6 0 0 1-6 6h-1.2a6 6 0 0 1-4.6-2.2L4.6 15.5a1.5 1.5 0 0 1 2.3-1.9L9 16" /></svg>
+          Pick a country to follow a test
         </p>
         <!-- reach.ts brings this to life: it runs a pretend test in each country in turn, along the line
              between the phone and the country, and fills the phone and the report. --x and --y place a
@@ -225,8 +222,9 @@
           <svg class="reach-lines" aria-hidden="true"></svg>
         </div>
         <p class="reach-note">
-          The page and the load times in the phone are an example. A real test shows your own page as each
-          country sees it.
+          Every test starts a new Chrome browser in a data centre inside the country. It opens your page in a
+          desktop window 1280 pixels wide and 720 pixels high, waits for the page to be ready and takes the
+          screenshot, usually in under a minute. The page and load times in the phone are an example.
         </p>
       </section>
 
