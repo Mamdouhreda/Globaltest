@@ -273,6 +273,15 @@ func receiveResult(w http.ResponseWriter, r *http.Request) {
 // screenshot, after its load time has been measured.
 const screenshotSettle = 3 * time.Second
 
+// loadTimeScript reads the page's own Navigation Timing: milliseconds from
+// the start of navigation to the end of the load event, or -1 if the page
+// hasn't finished it. That leaves out time spent in our own code and in
+// talking to Chromium, which a wall clock around Navigate would include.
+const loadTimeScript = `(() => {
+	const nav = performance.getEntriesByType('navigation')[0];
+	return nav && nav.loadEventEnd > 0 ? nav.loadEventEnd : -1;
+})()`
+
 type captureResult struct {
 	responseTime time.Duration
 	screenshot   []byte
@@ -295,19 +304,33 @@ func captureSite(siteURL string, recordVideo bool) (captureResult, error) {
 	ctx, cancel := chromedp.NewContext(allocCtx)
 	defer cancel()
 
+	// The first Run launches Chromium. Do it before the timer starts, so the
+	// load time doesn't include the browser starting up.
+	if err := chromedp.Run(ctx,
+		chromedp.EmulateViewport(1280, 720, chromedp.EmulateScale(2)),
+	); err != nil {
+		return captureResult{}, fmt.Errorf("failed to start Chrome: %w", err)
+	}
+
 	var (
 		screenshot   []byte
 		responseTime time.Duration
+		loadEventEnd float64
 	)
 	start := time.Now()
-	// wait for the page to load and capture the screenshot
 
 	if err := chromedp.Run(ctx,
-		chromedp.EmulateViewport(1280, 720, chromedp.EmulateScale(2)),
 		chromedp.Navigate(siteURL),
 		chromedp.WaitReady("body", chromedp.ByQuery),
 		chromedp.ActionFunc(func(context.Context) error {
 			responseTime = time.Since(start)
+			return nil
+		}),
+		chromedp.Evaluate(loadTimeScript, &loadEventEnd),
+		chromedp.ActionFunc(func(context.Context) error {
+			if loadEventEnd > 0 {
+				responseTime = time.Duration(loadEventEnd * float64(time.Millisecond))
+			}
 			return nil
 		}),
 		// Pages fill in images and news after they report ready, so give them
