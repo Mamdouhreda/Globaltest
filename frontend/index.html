@@ -134,17 +134,100 @@
         </p>
       </section>
 
-      <section>
+      <section class="reach">
         <h2>Countries you can test from</h2>
-        <ul class="places">
-          <li class="reveal"><strong>United Kingdom</strong><span>London</span></li>
-          <li class="reveal"><strong>United States</strong><span>Northern Virginia</span></li>
-          <li class="reveal"><strong>Germany</strong><span>Frankfurt</span></li>
-          <li class="reveal"><strong>Australia</strong><span>Sydney</span></li>
-          <li class="reveal"><strong>Ireland</strong><span>Dublin</span></li>
-          <li class="reveal"><strong>India</strong><span>Mumbai</span></li>
-          <li class="reveal"><strong>Brazil</strong><span>São Paulo</span></li>
-        </ul>
+        <p class="reveal">
+          Your address goes to a real Chrome browser in each city on the map. Each one opens your page and sends
+          back a screenshot and its load time. Pick a country to follow a test.
+        </p>
+        <!-- reach.ts brings this to life: it runs a pretend test in each country in turn, along the line
+             between the phone and the country, and fills the phone and the report. --x and --y place a
+             country on the map and match the pins in main.tsx; --dx and --dy move its label clear of its
+             neighbours. -->
+        <div class="reach-stage reveal">
+          <div class="reach-side">
+            <div class="reach-map">
+              <div class="reach-land" aria-hidden="true"></div>
+              <ul class="places">
+                <li data-place="uk" style="--x: 49.97%; --y: 20.96%; --dx: -34px; --dy: -34px">
+                  <button type="button"><span class="place-flag" aria-hidden="true"></span><strong>United Kingdom</strong><span class="place-city">London</span></button>
+                </li>
+                <li data-place="us" style="--x: 28.47%; --y: 30.15%; --dx: -44px; --dy: -30px">
+                  <button type="button"><span class="place-flag" aria-hidden="true"></span><strong>United States</strong><span class="place-city">Northern Virginia</span></button>
+                </li>
+                <li data-place="germany" style="--x: 52.42%; --y: 21.99%; --dx: 52px; --dy: 24px">
+                  <button type="button"><span class="place-flag" aria-hidden="true"></span><strong>Germany</strong><span class="place-city">Frankfurt</span></button>
+                </li>
+                <li data-place="australia" style="--x: 92%; --y: 83.75%; --dx: -66px; --dy: 2px">
+                  <button type="button"><span class="place-flag" aria-hidden="true"></span><strong>Australia</strong><span class="place-city">Sydney</span></button>
+                </li>
+                <li data-place="ireland" style="--x: 48.25%; --y: 19.63%; --dx: -60px; --dy: 8px">
+                  <button type="button"><span class="place-flag" aria-hidden="true"></span><strong>Ireland</strong><span class="place-city">Dublin</span></button>
+                </li>
+                <li data-place="india" style="--x: 70.25%; --y: 44.78%; --dx: 0px; --dy: 28px">
+                  <button type="button"><span class="place-flag" aria-hidden="true"></span><strong>India</strong><span class="place-city">Mumbai</span></button>
+                </li>
+                <li data-place="brazil" style="--x: 37.06%; --y: 76.18%; --dx: -54px; --dy: 2px">
+                  <button type="button"><span class="place-flag" aria-hidden="true"></span><strong>Brazil</strong><span class="place-city">São Paulo</span></button>
+                </li>
+              </ul>
+            </div>
+
+            <div class="reach-report">
+              <p class="reach-status">
+                <span class="place-flag" data-slot="flag" aria-hidden="true"></span>
+                <span data-slot="status"></span>
+              </p>
+              <button type="button" class="reach-pause"></button>
+              <ol class="reach-steps">
+                <li>Your address goes out</li>
+                <li>Chrome opens it there</li>
+                <li>A screenshot and load time come back</li>
+              </ol>
+            </div>
+          </div>
+
+          <!-- GlobalTest on a phone, running the test. It pictures what the report says in words, so it
+               is hidden from screen readers. -->
+          <div class="reach-phone" aria-hidden="true">
+            <div class="phone-screen">
+              <p class="phone-brand"><i></i>GlobalTest</p>
+              <p class="phone-field"><span>yoursite.com</span><b>Test</b></p>
+              <div class="phone-result">
+                <p class="phone-result-head">
+                  <span class="place-flag" data-slot="result-flag"></span>
+                  <strong data-slot="country"></strong>
+                  <span class="phone-pill" data-slot="pill"></span>
+                </p>
+                <div class="phone-shot">
+                  <div class="phone-wait">
+                    <span data-slot="wait"></span>
+                    <div class="phone-meter"><i></i></div>
+                  </div>
+                  <!-- The screenshot: a made-up home page that greets the visitor in the country's
+                       language and says where they are visiting from -->
+                  <div class="phone-page">
+                    <p class="phone-strip" data-slot="line"></p>
+                    <div class="phone-copy">
+                      <p class="phone-hello" data-slot="hello"></p>
+                      <div class="phone-bars"><i></i><i></i></div>
+                      <p class="phone-more" data-slot="more"></p>
+                    </div>
+                    <div class="phone-picture"></div>
+                    <p class="phone-cookie"><span data-slot="cookie"></span><b data-slot="accept"></b></p>
+                  </div>
+                </div>
+              </div>
+              <ul class="phone-list"></ul>
+            </div>
+          </div>
+
+          <svg class="reach-lines" aria-hidden="true"></svg>
+        </div>
+        <p class="reach-note">
+          The page and the load times in the phone are an example. A real test shows your own page as each
+          country sees it.
+        </p>
       </section>
 
       <section>

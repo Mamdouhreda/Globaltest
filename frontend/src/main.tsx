@@ -23,6 +23,7 @@ import yahooUs from './assets/example-yahoo-us.png';
 import yahooUsVideo from './assets/example-yahoo-us.mp4';
 import './guide';
 import { Logo } from './logo';
+import './reach';
 import './styles.css';
 import { getTurnstileToken } from './turnstile';
 

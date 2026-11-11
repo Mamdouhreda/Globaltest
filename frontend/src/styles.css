@@ -912,30 +912,602 @@
     }
   }
 
+  /* The countries on a dotted map beside a phone running GlobalTest. reach.ts
+     runs a pretend test in each country in turn: the address goes out along
+     the country's line, a browser opens there, and a screenshot comes back.
+     On a phone the parts stack: map, phone, countries, report. */
+  .guide > .reach {
+    max-width: 1100px;
+  }
+  .reach-stage {
+    position: relative;
+    isolation: isolate;
+    display: grid;
+    gap: 28px;
+    margin-top: 28px;
+    border-radius: 24px;
+    border: 1px solid rgb(142 33 11 / 0.12);
+    background: #fff;
+    padding: 20px 16px;
+    box-shadow: 0 20px 48px -24px rgb(142 33 11 / 0.25);
+  }
+  /* Until reach.ts runs there is nothing to show in the phone or the report */
+  .reach-stage:not(.is-live) :is(.reach-phone, .reach-report, .reach-lines) {
+    display: none;
+  }
+  .reach-side,
+  .reach-map {
+    display: contents;
+  }
+  .reach-land {
+    position: relative;
+    aspect-ratio: 1600 / 604;
+    background: url("./assets/world-dots.svg") center / 100% 100% no-repeat;
+  }
+  .reach-dot {
+    position: absolute;
+    z-index: 2;
+    width: 11px;
+    height: 11px;
+    margin: -5.5px 0 0 -5.5px;
+    border: 2.5px solid #d03011;
+    border-radius: 9999px;
+    background: #fff;
+    transition:
+      width 200ms,
+      height 200ms,
+      margin 200ms,
+      border-radius 200ms;
+  }
+  /* A country that has sent its screenshot back stays filled in */
+  .reach-dot.is-done,
+  .reach-dot.is-active {
+    border-color: #fe4e2b;
+    background: #fe4e2b;
+  }
+  .reach-dot.is-active {
+    animation: pin-pulse 1.6s ease-out infinite;
+  }
+  /* Once the address arrives the dot opens into a small browser window */
+  .reach-dot.is-open {
+    width: 24px;
+    height: 18px;
+    margin: -9px 0 0 -12px;
+    border-width: 1.5px;
+    border-radius: 4px;
+    background: linear-gradient(#fe4e2b 5px, #fff 5px);
+  }
+
+  /* The lines from each country to the phone, under the dots and labels */
+  .reach-lines {
+    position: absolute;
+    inset: 0;
+    z-index: 1;
+    width: 100%;
+    height: 100%;
+    overflow: visible;
+    pointer-events: none;
+    fill: none;
+  }
+  .reach-line {
+    stroke: #ffb3a3;
+    stroke-width: 1.5;
+    stroke-dasharray: 4 5;
+  }
+  .reach-line.is-active {
+    stroke: #fe4e2b;
+    stroke-width: 2;
+    stroke-dasharray: none;
+    opacity: 0.45;
+  }
+  /* A short bright stroke that runs along the chosen line: out to the country
+     with the address, then back to the phone with the screenshot. reach.ts
+     sets --reach-flight and --reach-run. */
+  .reach-comet {
+    stroke: #fe4e2b;
+    stroke-width: 4;
+    stroke-linecap: round;
+    stroke-dasharray: 0.16 1.2;
+    stroke-dashoffset: 0.16;
+    opacity: 0;
+  }
+  .reach-comet.is-out {
+    opacity: 1;
+    animation: reach-out var(--reach-flight) ease-in-out forwards;
+  }
+  .reach-comet.is-back {
+    opacity: 1;
+    animation: reach-back var(--reach-flight) ease-in-out forwards;
+  }
+  .reach-port {
+    fill: #fe4e2b;
+    stroke: #fff;
+    stroke-width: 2;
+  }
+  .reach-stem {
+    display: none;
+    stroke: #d03011;
+    opacity: 0.45;
+  }
+
   .places {
+    order: 3;
+    position: relative;
+    z-index: 3;
     display: flex;
     flex-wrap: wrap;
     justify-content: center;
-    gap: 10px;
+    gap: 8px;
   }
-  .places li {
+  .places button {
     display: flex;
-    flex-direction: column;
-    min-width: 132px;
-    border-radius: 16px;
-    border: 1px solid rgb(142 33 11 / 0.12);
+    align-items: center;
+    gap: 8px;
+    min-height: 40px;
+    border: 1px solid rgb(15 23 42 / 0.12);
+    border-radius: 9999px;
     background: #fff;
-    padding: 10px 16px;
-    text-align: center;
-    line-height: 1.35;
+    padding: 6px 14px 6px 10px;
+    font-size: 14px;
+    line-height: 1.2;
+    white-space: nowrap;
+    color: #475569;
+    transition:
+      border-color 150ms,
+      box-shadow 150ms;
+  }
+  .places button:hover {
+    border-color: #ffb3a3;
+  }
+  .places button[aria-pressed="true"] {
+    border-color: #fe4e2b;
+    box-shadow: 0 0 0 3px rgb(254 78 43 / 0.18);
   }
   .places strong {
     color: #8e210b;
     font-weight: 600;
   }
-  .places span {
+  /* The city is in the report, so it only shows where there is room */
+  .place-city {
+    display: none;
+  }
+  .place-flag svg {
+    display: block;
+    width: 22px;
+    border-radius: 3px;
+    box-shadow: 0 0 0 1px rgb(15 23 42 / 0.1);
+  }
+
+  /* What is happening in the chosen country, in words */
+  .reach-report {
+    order: 4;
+    position: relative;
+    z-index: 3;
+    display: grid;
+    grid-template-columns: 1fr auto;
+    align-items: center;
+    gap: 10px 12px;
+    border-radius: 16px;
+    background: #fff3f0;
+    padding: 12px 14px;
+    font-size: 14px;
+    line-height: 1.35;
+  }
+  .reach-status {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    color: #3a1408;
+    font-weight: 600;
+  }
+  .reach-pause {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    border: 1px solid rgb(15 23 42 / 0.12);
+    border-radius: 9999px;
+    background: #fff;
+    color: #334155;
+  }
+  .reach-pause:hover {
+    border-color: #ffb3a3;
+    color: #d03011;
+  }
+  .reach-pause svg {
+    width: 16px;
+    height: 16px;
+  }
+  /* The three steps of a test; the one under way is ringed and the finished
+     ones keep a filled number */
+  .reach-steps {
+    grid-column: 1 / -1;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    counter-reset: reach-step;
+  }
+  .reach-steps li {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    border-radius: 9999px;
+    background: #fff;
+    padding: 4px 12px 4px 4px;
+    color: #475569;
+    box-shadow: inset 0 0 0 1px rgb(142 33 11 / 0.12);
+    counter-increment: reach-step;
+    transition:
+      color 200ms,
+      box-shadow 200ms;
+  }
+  .reach-steps li::before {
+    content: counter(reach-step);
+    display: flex;
+    flex-shrink: 0;
+    width: 22px;
+    height: 22px;
+    align-items: center;
+    justify-content: center;
+    border-radius: 9999px;
+    background: #ffe2db;
+    color: #8e210b;
+    font-size: 12px;
+    font-weight: 700;
+    transition:
+      background-color 200ms,
+      color 200ms;
+  }
+  .reach-steps li:is(.is-on, .is-done) {
+    color: #3a1408;
+  }
+  .reach-steps li:is(.is-on, .is-done)::before {
+    background: #d03011;
+    color: #fff;
+  }
+  .reach-steps li.is-on {
+    box-shadow: inset 0 0 0 1.5px #fe4e2b;
+  }
+
+  /* The phone, showing GlobalTest part-way through a test */
+  .reach-phone {
+    order: 2;
+    position: relative;
+    z-index: 3;
+    justify-self: center;
+    width: 200px;
+    height: 420px;
+    border-radius: 34px;
+    background: #3a1408;
+    padding: 9px;
+    box-shadow:
+      0 2px 6px rgb(142 33 11 / 0.1),
+      0 28px 60px -12px rgb(142 33 11 / 0.4);
+  }
+  .reach-phone::before {
+    content: "";
+    position: absolute;
+    left: 50%;
+    top: 16px;
+    z-index: 1;
+    width: 52px;
+    height: 13px;
+    transform: translateX(-50%);
+    border-radius: 9999px;
+    background: #3a1408;
+  }
+  .phone-screen {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    height: 100%;
+    overflow: hidden;
+    border-radius: 26px;
+    background: #fff8f6;
+    padding: 34px 9px 10px;
+    font-size: 10px;
+    line-height: 1.3;
+    color: #475569;
+  }
+  .phone-brand {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    color: #3a1408;
+    font-size: 11px;
+    font-weight: 700;
+  }
+  .phone-brand i {
+    width: 10px;
+    height: 10px;
+    border-radius: 9999px;
+    background: #fe4e2b;
+  }
+  /* The address box with its Test button */
+  .phone-field {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    border-radius: 9999px;
+    background: #fff;
+    padding: 3px 3px 3px 10px;
+    color: #0f172a;
+    box-shadow: inset 0 0 0 1px rgb(254 78 43 / 0.5);
+  }
+  .phone-field b {
+    border-radius: 9999px;
+    background: #d03011;
+    padding: 3px 10px;
+    color: #fff;
+    font-weight: 600;
+  }
+
+  /* The chosen country's result: its name and load time over its screenshot */
+  .phone-result {
+    flex-shrink: 0;
+    overflow: hidden;
+    border: 1px solid rgb(142 33 11 / 0.14);
+    border-radius: 10px;
+    background: #fff;
+  }
+  .phone-result-head {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 5px 7px;
+  }
+  .phone-result-head strong {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    color: #0f172a;
+    font-weight: 600;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .phone-pill {
+    border-radius: 9999px;
+    background: #d1fae5;
+    padding: 1px 6px;
+    color: #064e3b;
+    font-size: 9px;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+  }
+  .is-running .phone-pill {
+    background: #fef3c7;
+    color: #78350f;
+  }
+  .phone-shot {
+    position: relative;
+    aspect-ratio: 7 / 5;
+    overflow: hidden;
+    border-top: 1px solid rgb(142 33 11 / 0.1);
+    background: #fff8f6;
+  }
+  .phone-wait {
+    display: none;
+    height: 100%;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 7px;
+    color: #1e293b;
+    font-weight: 600;
+  }
+  .is-running .phone-wait {
+    display: flex;
+  }
+  .phone-meter {
+    width: 60%;
+    height: 4px;
+    overflow: hidden;
+    border-radius: 9999px;
+    background: #ffe2db;
+  }
+  .phone-meter i {
+    display: block;
+    height: 100%;
+    background: #fe4e2b;
+    transform: scaleX(0);
+    transform-origin: left;
+  }
+  .is-running .phone-meter i {
+    animation: reach-load var(--reach-run) linear forwards;
+  }
+
+  /* The screenshot: a made-up home page, small, in a desktop shape */
+  .phone-page {
+    display: grid;
+    grid-template-columns: 1fr 42%;
+    align-content: start;
+    height: 100%;
+    background: #fff;
+    animation: fade-in 250ms ease-out;
+  }
+  .is-running .phone-page {
+    display: none;
+  }
+  .phone-strip {
+    grid-column: 1 / -1;
+    overflow: hidden;
+    background: #d03011;
+    padding: 3px 4px;
+    color: #fff;
+    font-size: 7px;
+    font-weight: 600;
+    text-align: center;
+    white-space: nowrap;
+  }
+  .phone-copy {
+    padding: 8px 0 0 8px;
+  }
+  .phone-hello {
+    color: #3a1408;
+    font-size: 14px;
+    font-weight: 700;
+    line-height: 1.15;
+  }
+  /* Grey bars stand in for the page's text */
+  .phone-bars i {
+    display: block;
+    height: 4px;
+    margin-top: 5px;
+    border-radius: 9999px;
+    background: #f1e4e0;
+  }
+  .phone-bars i + i {
+    width: 65%;
+  }
+  .phone-more {
+    display: inline-block;
+    margin-top: 7px;
+    border-radius: 9999px;
+    background: #d03011;
+    padding: 2px 7px;
+    color: #fff;
+    font-size: 7px;
+    font-weight: 600;
+  }
+  .phone-picture {
+    height: 44px;
+    margin: 8px 8px 0 6px;
+    border-radius: 6px;
+    background:
+      radial-gradient(circle at 65% 45%, #fe4e2b 0 9px, transparent 10px),
+      linear-gradient(135deg, #ffe2db, #ffb3a3);
+  }
+  /* The cookie banner, in the countries that show one */
+  .phone-cookie {
+    position: absolute;
+    left: 5px;
+    right: 5px;
+    bottom: 5px;
+    display: none;
+    align-items: center;
+    gap: 6px;
+    border-radius: 6px;
+    background: #3a1408;
+    padding: 4px 6px;
+    color: #fff3f0;
+    font-size: 7px;
+  }
+  .phone-cookie.is-shown {
+    display: flex;
+  }
+  .phone-cookie b {
+    margin-left: auto;
+    border-radius: 9999px;
+    background: #fff;
+    padding: 1px 6px;
+    color: #8e210b;
+    font-weight: 600;
+  }
+
+  /* Every country in the test, with its load time once it has one */
+  .phone-list {
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+  }
+  .phone-list li {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    border-radius: 6px;
+    padding: 2.5px 6px;
+  }
+  .phone-list li.is-active {
+    background: #ffe2db;
+    color: #3a1408;
+  }
+  .phone-list span:nth-child(2) {
+    flex: 1;
+  }
+  .phone-list b {
+    color: #94a3b8;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+  }
+  .phone-list li.is-done b {
+    color: #065f46;
+  }
+  .phone-screen .place-flag svg {
+    width: 14px;
+    border-radius: 2px;
+  }
+  .guide .reach-note {
+    margin-top: 16px;
     color: #475569;
     font-size: 14px;
+  }
+
+  /* With room, the phone stands beside the map */
+  @media (min-width: 720px) {
+    .reach-stage {
+      grid-template-columns: minmax(0, 1fr) auto;
+      align-items: center;
+      column-gap: 40px;
+      padding: 28px;
+    }
+    .reach-side {
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+    }
+    .place-city {
+      display: inline;
+    }
+  }
+  /* On a wide screen each country's name sits on the map beside its dot */
+  @media (min-width: 1024px) {
+    .reach-stage {
+      padding: 36px 40px;
+    }
+    .reach-map {
+      display: block;
+      position: relative;
+    }
+    .reach-stem {
+      display: inline;
+    }
+    .places {
+      position: absolute;
+      inset: 0;
+      display: block;
+    }
+    .places li {
+      position: absolute;
+      left: var(--x);
+      top: var(--y);
+    }
+    .places button {
+      position: absolute;
+      left: var(--dx);
+      top: var(--dy);
+      gap: 6px;
+      min-height: 30px;
+      transform: translate(-50%, -50%);
+      padding: 4px 10px 4px 6px;
+      font-size: 13px;
+      box-shadow: 0 2px 8px rgb(142 33 11 / 0.12);
+    }
+    .places button[aria-pressed="true"] {
+      box-shadow:
+        0 2px 8px rgb(142 33 11 / 0.12),
+        0 0 0 3px rgb(254 78 43 / 0.18);
+    }
+    .place-city {
+      display: none;
+    }
+    .places .place-flag svg {
+      width: 18px;
+    }
+    .reach-phone {
+      width: 210px;
+      height: 440px;
+    }
   }
 
   .reasons {
@@ -1225,6 +1797,32 @@
   }
 }
 
+/* The lines are drawn from the country to the phone, so the stroke runs
+   backwards along one on its way out */
+@keyframes reach-out {
+  from {
+    stroke-dashoffset: -1.05;
+  }
+  to {
+    stroke-dashoffset: 0.16;
+  }
+}
+
+@keyframes reach-back {
+  from {
+    stroke-dashoffset: 0.16;
+  }
+  to {
+    stroke-dashoffset: -1.05;
+  }
+}
+
+@keyframes reach-load {
+  to {
+    transform: scaleX(1);
+  }
+}
+
 @keyframes sheet-up {
   from {
     transform: translateY(100%);
@@ -1239,6 +1837,7 @@
 
 @media (prefers-reduced-motion: reduce) {
   .map-dot.is-checked,
+  .reach-dot.is-active,
   .picker-panel,
   .fade-in {
     animation: none;
