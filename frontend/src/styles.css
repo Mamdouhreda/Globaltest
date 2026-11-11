@@ -71,53 +71,166 @@
     opacity: 0.7;
   }
 
-  /* Address field */
-  .glass-field {
-    background: rgb(255 255 255 / 0.75);
-    border: 1px solid rgb(15 23 42 / 0.12);
-    backdrop-filter: blur(12px);
-    box-shadow: 0 12px 32px rgb(142 33 11 / 0.12);
+  /* The hero's glow: a wide soft oval rising from under the test box in the
+     page's own colours, like a sunrise: the brand red at its heart, then
+     coral, rose and peach towards its edge, with a fine
+     grain over it. It breathes slowly and fades out before the examples, so
+     the rest of the page keeps its own colour. --cy is the oval's centre,
+     --rx and --ry its half-width and half-height. */
+  .hero-glow {
+    --cy: 650px;
+    --rx: 980px;
+    --ry: 620px;
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 920px;
+    overflow: hidden;
+    mask-image: linear-gradient(to bottom, #000 52%, transparent 88%);
+  }
+  .hero-glow-orb {
+    position: absolute;
+    top: calc(var(--cy) - var(--ry));
+    left: 50%;
+    width: calc(var(--rx) * 2);
+    height: calc(var(--ry) * 2);
+    margin-left: calc(var(--rx) * -1);
+    background: radial-gradient(
+      closest-side,
+      #fe4e2b 0%,
+      #ff6a42 18%,
+      #ff7d63 30%,
+      #ffa08a 44%,
+      #ffb3a3 54%,
+      #ffc8ae 63%,
+      #fed7aa 71%,
+      rgb(254 215 170 / 0.5) 80%,
+      rgb(255 239 235 / 0.3) 87%,
+      transparent 94%
+    );
+    filter: blur(24px);
+    animation: glow-breathe 14s ease-in-out infinite alternate;
+  }
+  .hero-glow::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+    opacity: 0.32;
+    mix-blend-mode: overlay;
+    /* Grain only on the glow, so the plain page around it stays clean */
+    mask-image: radial-gradient(var(--rx) var(--ry) at 50% var(--cy), #000 55%, transparent 88%);
+  }
+  @media (max-width: 639px) {
+    .hero-glow {
+      --cy: 640px;
+      --rx: 560px;
+      --ry: 500px;
+      height: 1000px;
+      mask-image: linear-gradient(to bottom, #000 50%, transparent 86%);
+    }
+  }
+
+  /* The test box: the address on top, the choices and the start button
+     along the bottom. No backdrop-filter, which would trap the picker's
+     phone sheet inside the box. */
+  .prompt-box {
+    position: relative;
+    z-index: 20;
+    padding: 18px 12px 12px;
+    border-radius: 24px;
+    background: rgb(250 248 245 / 0.96);
+    border: 1px solid rgb(255 255 255 / 0.8);
+    box-shadow:
+      0 1px 2px rgb(15 23 42 / 0.06),
+      0 20px 50px rgb(142 33 11 / 0.18);
     cursor: text;
+    text-align: left;
     transition:
       border-color 150ms,
       box-shadow 150ms;
   }
-  .glass-field:hover {
-    border-color: rgb(15 23 42 / 0.25);
+  .prompt-box > label {
+    padding-left: 8px;
+    padding-right: 8px;
   }
-  .glass-field:focus-within {
-    border-color: #fe4e2b;
+  .prompt-box:focus-within {
+    border-color: rgb(254 78 43 / 0.55);
     box-shadow:
-      0 0 0 3px rgb(254 78 43 / 0.25),
-      0 12px 32px rgb(142 33 11 / 0.12);
+      0 0 0 3px rgb(254 78 43 / 0.18),
+      0 20px 50px rgb(142 33 11 / 0.18);
   }
-  .glass-field.is-invalid {
+  .prompt-box.is-invalid {
     border-color: #be123c;
   }
-  /* The field shows the ring, so the input inside it doesn't need its own */
-  .glass-field input:focus-visible {
+  /* The box shows the ring, so the input inside it doesn't need its own */
+  .prompt-box input:focus-visible {
     outline: none;
   }
-
-  .primary-button {
-    display: inline-flex;
-    flex-shrink: 0;
-    align-items: center;
+  /* The picker and the video choice as small pills inside the box */
+  .prompt-box .picker {
+    width: auto;
+    min-width: 0;
+    max-width: none;
+  }
+  .prompt-box .picker-trigger,
+  .box-chip {
+    min-height: 36px;
+    background: #fff;
+    border-color: rgb(15 23 42 / 0.1);
+    font-size: 14px;
+  }
+  .prompt-box .picker-trigger {
     gap: 8px;
+    padding: 0 8px 0 5px;
+  }
+  .prompt-box .picker-flag {
+    width: 24px;
+    height: 24px;
+  }
+  .box-chip {
+    flex-shrink: 0;
+    gap: 6px;
+    padding: 0 12px;
+  }
+  .box-chip:has(input:focus-visible) {
+    outline: 2px solid #fe4e2b;
+    outline-offset: 2px;
+  }
+  /* The list drops from the pill's left edge, inside the box's width */
+  @media (min-width: 640px) {
+    .prompt-box .picker-panel {
+      left: -4px;
+      transform: none;
+    }
+  }
+
+  /* The round start button */
+  .send-button {
+    display: flex;
+    flex-shrink: 0;
+    width: 40px;
     height: 40px;
-    padding: 0 20px;
-    border-radius: 12px;
+    align-items: center;
+    justify-content: center;
+    border-radius: 9999px;
     background: #d03011;
     color: #fff;
-    font-size: 15px;
-    font-weight: 600;
-    transition: background-color 150ms;
+    transition:
+      background-color 150ms,
+      transform 150ms;
   }
-  .primary-button:hover:not(:disabled) {
+  .send-button:hover:not(:disabled) {
     background: #aa280e;
+    transform: translateY(-1px);
   }
-  .primary-button:disabled {
+  .send-button:disabled {
     background: #7f5247;
+  }
+  .send-button:focus-visible {
+    outline: 2px solid #fe4e2b;
+    outline-offset: 2px;
   }
   .spinner {
     width: 14px;
@@ -668,22 +781,6 @@
     background-color: #ffcbbf;
   }
 
-  /* The map as the hero's backdrop: faded towards its edges so the text over
-     it stays readable, with a dot on each country and the chosen ones lit */
-  .hero-map {
-    position: absolute;
-    top: 72px;
-    left: 50%;
-    width: min(1280px, 100%);
-    transform: translateX(-50%);
-    pointer-events: none;
-  }
-  /* On a phone the map is too small to read and its dots land on the headline */
-  @media (max-width: 639px) {
-    .hero-map {
-      display: none;
-    }
-  }
   .world-map {
     position: relative;
     aspect-ratio: 1600 / 604;
@@ -1888,6 +1985,13 @@
   }
 }
 
+/* The glow swells a little and rises, then settles back */
+@keyframes glow-breathe {
+  to {
+    transform: translateY(-14px) scale(1.05);
+  }
+}
+
 @keyframes waiting-line {
   from {
     opacity: 0;
@@ -1901,7 +2005,8 @@
   .picker-panel,
   .fade-in,
   .twinkle-star,
-  .waiting-line {
+  .waiting-line,
+  .hero-glow-orb {
     animation: none;
   }
   .meter-fill {

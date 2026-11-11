@@ -350,6 +350,17 @@ function describeCountries(chosen: Region[], total: number): string {
   return chosen.length > 2 ? `${names} +${chosen.length - 2} more` : names;
 }
 
+// The closed picker's short form, beside the chosen flags.
+function countCountries(chosen: Region[], total: number): string {
+  if (chosen.length === 0) {
+    return 'Choose countries';
+  }
+  if (chosen.length === 1) {
+    return chosen[0].label;
+  }
+  return chosen.length === total ? `All ${total} countries` : `${chosen.length} countries`;
+}
+
 // The countries as a dropdown: a line with the chosen flags that opens a list
 // to search, grouped by continent, under a map that lights up as they're
 // picked. On a phone the list is a sheet from the bottom of the screen.
@@ -412,8 +423,8 @@ function CountryPicker({
   }, [open]);
 
   return (
-    <div className="flex w-full flex-col items-center gap-2.5">
-      <p id={labelId} className="text-sm font-semibold text-slate-800">
+    <>
+      <p id={labelId} className="sr-only">
         Test from
       </p>
       <div
@@ -449,8 +460,13 @@ function CountryPicker({
               ))}
             </span>
           )}
-          <span id={`${panelId}-summary`} className="min-w-0 flex-1 truncate text-left">
+          {/* The pill is short, so it shows a count beside the flags; screen
+              readers get the names. */}
+          <span id={`${panelId}-summary`} className="sr-only">
             {describeCountries(chosen, available.length)}
+          </span>
+          <span aria-hidden className="min-w-0 flex-1 truncate text-left">
+            {countCountries(chosen, available.length)}
           </span>
           <svg viewBox="0 0 24 24" className="picker-chevron size-5 shrink-0" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
             <path d="m6 9 6 6 6-6" />
@@ -578,48 +594,36 @@ function CountryPicker({
           </div>
         </div>
       </div>
-    </div>
+    </>
   );
 }
 
-// What each test captures: a screenshot, or a screenshot and a scroll video.
-// The two are radios dressed as chips.
-function CaptureChoice({ recordVideo, onChange }: { recordVideo: boolean; onChange: (recordVideo: boolean) => void }) {
-  const labelId = useId();
-  const name = useId();
-  const options = [
-    { video: false, label: 'Screenshot', icon: <ImageIcon /> },
-    { video: true, label: 'Screenshot and video', icon: <PlayIcon />, note: 'About 10 s longer' },
-  ];
-
+// Every test takes a screenshot; this pill adds a video of the page
+// scrolling, which takes a little longer.
+function VideoToggle({ recordVideo, onChange }: { recordVideo: boolean; onChange: (recordVideo: boolean) => void }) {
   return (
-    <div role="radiogroup" aria-labelledby={labelId} className="flex flex-col items-center gap-2.5">
-      <p id={labelId} className="text-sm font-semibold text-slate-800">
-        Capture
-      </p>
-      <div className="flex flex-wrap justify-center gap-2">
-        {options.map((option) => {
-          const checked = recordVideo === option.video;
-          return (
-            <label key={option.label} className={`country-chip cursor-pointer ${checked ? 'is-checked' : ''}`}>
-              <input
-                type="radio"
-                name={name}
-                checked={checked}
-                onChange={() => onChange(option.video)}
-                className="sr-only"
-              />
-              {option.icon}
-              {option.label}
-              {option.note && <span className="text-xs font-normal text-slate-600">{option.note}</span>}
-              <span className="country-chip-mark" aria-hidden>
-                <CheckIcon />
-              </span>
-            </label>
-          );
-        })}
-      </div>
-    </div>
+    <label
+      title="Also record a video of the whole page scrolling. About 10 s longer."
+      className={`country-chip box-chip cursor-pointer ${recordVideo ? 'is-checked' : ''}`}
+    >
+      <input
+        type="checkbox"
+        checked={recordVideo}
+        onChange={(event) => onChange(event.target.checked)}
+        className="sr-only"
+      />
+      <PlayIcon />
+      Video
+      <span className="hidden text-xs font-normal text-slate-600 sm:inline">+10 s</span>
+    </label>
+  );
+}
+
+function ArrowUpIcon() {
+  return (
+    <svg viewBox="0 0 24 24" className="size-5" fill="none" stroke="currentColor" strokeWidth="2.25" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+      <path d="M12 19V5M5.5 11.5 12 5l6.5 6.5" />
+    </svg>
   );
 }
 
@@ -962,16 +966,10 @@ function App() {
 
   return (
     <main className="relative px-4 pb-12 pt-4 text-slate-800">
-      <div className="pointer-events-none absolute inset-0 overflow-hidden" aria-hidden>
-        <div className="glow glow-red" />
-        <div className="glow glow-rose" />
-        <div className="glow glow-peach" />
-      </div>
-
-      {/* A faded map behind the hero, with a lit dot for each chosen country.
-          Countries are picked with the picker, so the map is only a picture. */}
-      <div className="hero-map" aria-hidden>
-        <CountryMap selected={selected} />
+      <div className="pointer-events-none absolute inset-0" aria-hidden>
+        <div className="hero-glow">
+          <div className="hero-glow-orb" />
+        </div>
       </div>
 
       <div className="relative mx-auto flex max-w-6xl items-center gap-2.5">
@@ -988,10 +986,20 @@ function App() {
           from each one, and a video of the whole page if you want it.
         </p>
 
-        <form onSubmit={handleSubmit} noValidate className="mt-8 flex w-full max-w-3xl flex-col items-center gap-4">
-          <div className="w-full">
-            <label className={`glass-field flex h-14 items-center gap-3 rounded-2xl pl-4 pr-2 sm:h-16 ${urlError ? 'is-invalid' : ''}`}>
-              <SearchIcon />
+        <form onSubmit={handleSubmit} noValidate className="mt-8 flex w-full max-w-3xl flex-col items-center gap-3">
+          {/* One box holds the whole test: the address on top, and under it
+              the countries, the video choice and the button to start. */}
+          <div
+            className={`prompt-box w-full ${urlError ? 'is-invalid' : ''}`}
+            // The box reads as one field, so a press on its empty space goes to the address.
+            onMouseDown={(event) => {
+              if (!(event.target as Element).closest('button, label, input, .picker')) {
+                event.preventDefault();
+                inputRef.current?.focus();
+              }
+            }}
+          >
+            <label className="block pb-5 sm:pb-8">
               <span className="sr-only">Website address</span>
               <input
                 ref={inputRef}
@@ -1007,34 +1015,48 @@ function App() {
                   setUrl(event.target.value);
                   setUrlError('');
                 }}
-                placeholder="example.com"
+                placeholder="Enter a website, like example.com"
                 aria-invalid={urlError ? true : undefined}
                 aria-describedby={urlError ? urlErrorId : undefined}
-                className="min-w-0 flex-1 bg-transparent text-base text-slate-900 outline-none placeholder:text-slate-500 sm:text-lg"
+                className="block h-8 w-full bg-transparent text-base text-slate-900 outline-none placeholder:text-slate-500 sm:text-lg"
               />
-              <button type="submit" disabled={isSubmitting} className="primary-button">
-                {isSubmitting && <span className="spinner" aria-hidden />}
-                {isSubmitting ? (
-                  checking ? 'Checking…' : 'Testing…'
-                ) : (
-                  <span>
-                    Test
-                    {/* The count only fits beside the address on wider screens. */}
-                    {selected.length > 0 && (
-                      <span className="hidden sm:inline">
-                        {` ${selected.length} ${selected.length === 1 ? 'country' : 'countries'}`}
-                      </span>
-                    )}
-                  </span>
-                )}
-              </button>
             </label>
-            {urlError && (
-              <p id={urlErrorId} role="alert" className="mt-2 text-left text-sm font-medium text-rose-700">
-                {urlError}
-              </p>
-            )}
+            <div className="flex items-center gap-2">
+              <div className="flex min-w-0 flex-1 items-center gap-2">
+                <CountryPicker
+                  selected={selected}
+                  onToggle={toggleRegion}
+                  onSetAll={setSelected}
+                  errorId={selected.length === 0 ? countryErrorId : undefined}
+                />
+                <VideoToggle recordVideo={recordVideo} onChange={setRecordVideo} />
+              </div>
+              <button
+                type="submit"
+                disabled={isSubmitting}
+                aria-label={
+                  isSubmitting
+                    ? checking
+                      ? 'Checking…'
+                      : 'Testing…'
+                    : `Test ${selected.length} ${selected.length === 1 ? 'country' : 'countries'}`
+                }
+                className="send-button"
+              >
+                {isSubmitting ? <span className="spinner" aria-hidden /> : <ArrowUpIcon />}
+              </button>
+            </div>
           </div>
+          {urlError && (
+            <p id={urlErrorId} role="alert" className="self-start text-left text-sm font-medium text-rose-700">
+              {urlError}
+            </p>
+          )}
+          {selected.length === 0 && (
+            <p id={countryErrorId} role="alert" className="self-start text-left text-sm font-medium text-rose-700">
+              Pick at least one country.
+            </p>
+          )}
 
           {checking && (
             <p role="status" className="text-sm font-medium text-slate-700">
@@ -1047,20 +1069,6 @@ function App() {
               {checkError}
             </p>
           )}
-
-          <CountryPicker
-            selected={selected}
-            onToggle={toggleRegion}
-            onSetAll={setSelected}
-            errorId={selected.length === 0 ? countryErrorId : undefined}
-          />
-          {selected.length === 0 && (
-            <p id={countryErrorId} role="alert" className="text-sm font-medium text-rose-700">
-              Pick at least one country.
-            </p>
-          )}
-
-          <CaptureChoice recordVideo={recordVideo} onChange={setRecordVideo} />
         </form>
       </div>
 
