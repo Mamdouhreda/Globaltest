@@ -136,6 +136,15 @@ data "aws_iam_policy_document" "github_deploy" {
     resources = [aws_lambda_function.backend.arn]
   }
 
+  # Records the deployed image tags for Terraform, see ssm.tf.
+  statement {
+    actions = ["ssm:PutParameter"]
+    resources = [
+      "arn:aws:ssm:${var.regions.us}:${data.aws_caller_identity.current.account_id}:parameter/${var.project_name}/backend-image-tag",
+      "arn:aws:ssm:${var.regions.us}:${data.aws_caller_identity.current.account_id}:parameter/${var.project_name}/browser-tester-image-tag",
+    ]
+  }
+
   statement {
     actions   = ["s3:ListBucket"]
     resources = [aws_s3_bucket.frontend.arn]

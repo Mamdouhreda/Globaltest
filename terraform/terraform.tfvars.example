@@ -1,6 +1,7 @@
 # Copy this file to terraform.tfvars and adjust if needed.
 # terraform.tfvars is gitignored since it may end up with account-specific
-# overrides; the defaults below already match variables.tf.
+# overrides; the defaults below already match variables.tf. Secrets and
+# image tags are not set here: they come from SSM (see ssm.tf).
 
 project_name = "globaltest"
 environment  = "dev"

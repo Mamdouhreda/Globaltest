@@ -9,7 +9,7 @@ This is **Phase 1 — infrastructure only**: VPC, ECS cluster, ECR repo, IAM rol
 - **No NAT Gateway.** Fargate tasks launch into public subnets with a public IP instead of a private subnet behind a NAT Gateway (~$32/month + data even when unused). Tasks only need outbound access to reach arbitrary test websites, so this is enough — the security group has no inbound rules.
 - **No load balancer.** The Go backend will start tasks directly via the ECS `RunTask` API, not behind an ALB.
 - **Empty ECS clusters, IAM roles, and ECR repos are free.** AWS only bills running Fargate tasks and stored data (e.g. images) — not the presence of these resources.
-- **Local Terraform state** — no S3/DynamoDB backend, so there's nothing always-on billed just to track state.
+- **State in a small S3 bucket**, locked with an S3 lock file rather than a DynamoDB table — well under $0.01/month.
 
 Once tasks actually run, real costs are Fargate compute (billed per second while a task runs), plus small storage costs for any ECR images. Nothing here runs continuously.
 
@@ -17,7 +17,7 @@ Once tasks actually run, real costs are Fargate compute (billed per second while
 
 Starting a test is limited per IP, per network range and globally per day, using counters in the on-demand `globaltest-rate-limits` DynamoDB table (see `backend/ratelimit.go`). Change the limits with the `rate_limit_*` variables in `terraform.tfvars`; `terraform apply` is all it takes.
 
-The Cloudflare Turnstile bot check needs both keys: the public site key in `frontend/.env.production`, and the secret as `turnstile_secret_key` in `terraform.tfvars`. Deploy the frontend first, then apply the secret, or tests will be refused in between.
+The Cloudflare Turnstile bot check needs both keys: the public site key in `frontend/.env.production`, and the secret in the SSM parameter `/globaltest/turnstile-secret-key` (see `ssm.tf`). Deploy the frontend first, then change the secret and `terraform apply`, or tests will be refused in between.
 
 ## Structure
 
@@ -43,17 +43,25 @@ Regions launched after March 2019 (e.g. UAE `me-central-1`) are disabled in new 
 
 UAE was tried and dropped: AWS reported availability zone `mec1-az2` as unavailable, and the region's subnet and ECS cluster creation never completed.
 
+## State and shared values
+
+Nothing Terraform needs lives only on one machine, so you can work from any computer with AWS credentials for account `632248361014`:
+
+- **State** is in the S3 bucket `globaltest-tfstate-632248361014` (us-east-1), set in `versions.tf`. It's versioned, so older states can be restored, private, and TLS-only. `use_lockfile` stops two applies from running at once. The bucket was created by hand because it can't manage itself.
+- **The Turnstile secret** is the SecureString SSM parameter `/globaltest/turnstile-secret-key`.
+- **Image tags** are in `/globaltest/backend-image-tag` and `/globaltest/browser-tester-image-tag`. `deploy.yml` writes them after each deploy. Terraform ignores image changes on existing resources (CI owns which image runs), so these only matter when a Lambda or task definition is created or replaced.
+
+`terraform.tfvars` is optional and only for overriding the defaults in `variables.tf`.
+
 ## Usage
 
 ```sh
+git pull                    # always start from the latest code
 cd terraform
-terraform fmt -recursive   # format check, offline
-terraform init              # downloads the AWS provider plugin, offline/free
-terraform validate          # checks config validity, does not touch AWS
+aws sts get-caller-identity # make sure you're logged in to the right account
+terraform init              # first time on a machine; connects to the S3 state
+terraform plan              # review before every apply
+terraform apply
 ```
 
-**Do not run `terraform plan` or `terraform apply` without first:**
-1. Configuring AWS credentials (`aws configure` or SSO) — not set up yet in this environment.
-2. Reviewing the plan output and understanding what it will actually create and what it will cost.
-
-Nothing in this repo has been applied to a real AWS account yet.
+Run `terraform fmt -recursive` before committing.

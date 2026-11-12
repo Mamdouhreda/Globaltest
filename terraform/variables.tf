@@ -22,13 +22,6 @@ variable "rate_limit_global" {
   default     = 500
 }
 
-variable "turnstile_secret_key" {
-  description = "Cloudflare Turnstile secret key. Set it in terraform.tfvars, which is gitignored. Left empty, the bot check is off."
-  type        = string
-  default     = ""
-  sensitive   = true
-}
-
 variable "budget_alert_email" {
   description = "Where to send the daily AWS budget alert. Left empty, no budget is created."
   type        = string
@@ -89,18 +82,6 @@ variable "vpc_cidrs" {
     india     = "10.70.0.0/16"
     brazil    = "10.80.0.0/16"
   }
-}
-
-variable "backend_image_tag" {
-  description = "Git-SHA tag of the backend image to deploy to Lambda. A mutable tag like \"latest\" wouldn't trigger a Terraform diff on redeploy — Lambda would silently keep serving the old image. Must reference an image that already exists in the backend ECR repo before this can be applied."
-  type        = string
-  default     = "latest" # placeholder — set to a real pushed image tag before applying the Lambda resources
-}
-
-variable "browser_tester_image_tag" {
-  description = "Git-SHA tag of the browser-tester image to deploy to each region's ECS task definition. Must already exist in all regional ECR repos before this can be applied."
-  type        = string
-  default     = "latest" # placeholder — set to a real pushed image tag before applying the ECS task definitions
 }
 
 variable "tags" {

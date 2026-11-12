@@ -8,7 +8,16 @@ terraform {
     }
   }
 
-  # Local state on purpose: no S3/DynamoDB backend, so there's nothing
-  # always-on to pay for while this stays a solo/hobby project. Revisit
-  # once multiple people need to run `terraform apply`.
+  # State lives in S3 so any machine with AWS credentials can run plan/apply
+  # against the same state. The bucket was created by hand (it can't manage
+  # itself): versioned, private, TLS-only. use_lockfile keeps a lock object
+  # next to the state, so no DynamoDB table is needed. Costs well under $0.01
+  # a month.
+  backend "s3" {
+    bucket       = "globaltest-tfstate-632248361014"
+    key          = "globaltest/terraform.tfstate"
+    region       = "us-east-1"
+    encrypt      = true
+    use_lockfile = true
+  }
 }

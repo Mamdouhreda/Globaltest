@@ -4,7 +4,8 @@ name: deploy
 #   backend/**         -> image to ECR (us-east-1) -> Lambda code update
 #   browser-tester/**  -> image to each regional ECR -> new ECS task-def revision
 #   frontend/**        -> vite build -> S3 sync
-# Infra (terraform/) is deliberately NOT applied here; state is local.
+# Infra (terraform/) is deliberately NOT applied here. Each deploy records
+# its image tag in SSM so Terraform knows what's live (terraform/ssm.tf).
 
 on:
   push:
@@ -87,6 +88,12 @@ jobs:
             --output text --query LastUpdateStatus
           aws lambda wait function-updated --function-name "$PROJECT-backend"
 
+      - name: Record deployed tag for Terraform
+        run: |
+          aws ssm put-parameter --overwrite --type String \
+            --name "/$PROJECT/backend-image-tag" --value "${{ github.sha }}" \
+            --query Version --output text
+
   browser-tester:
     needs: changes
     if: needs.changes.outputs.browser-tester == 'true' || github.event_name == 'workflow_dispatch'
@@ -144,6 +151,23 @@ jobs:
           ' taskdef.json > new-taskdef.json
           aws ecs register-task-definition --cli-input-json file://new-taskdef.json \
             --query taskDefinition.taskDefinitionArn --output text
+
+  # Runs only when every region deployed, so the recorded tag exists in all
+  # seven ECR repos.
+  browser-tester-record:
+    needs: browser-tester
+    runs-on: ubuntu-latest
+    steps:
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.AWS_DEPLOY_ROLE_ARN }}
+          aws-region: ${{ env.BACKEND_REGION }}
+
+      - name: Record deployed tag for Terraform
+        run: |
+          aws ssm put-parameter --overwrite --type String \
+            --name "/$PROJECT/browser-tester-image-tag" --value "${{ github.sha }}" \
+            --query Version --output text
 
   frontend:
     needs: changes

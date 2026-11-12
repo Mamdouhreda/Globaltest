@@ -28,8 +28,9 @@ jobs:
       - name: Format check
         run: terraform fmt -check -recursive
 
+      # No AWS credentials here, so skip the S3 state backend.
       - name: Init
-        run: terraform init -input=false
+        run: terraform init -input=false -backend=false
 
       - name: Validate
         run: terraform validate

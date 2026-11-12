@@ -15,7 +15,7 @@ module "uk" {
   vpc_cidr                 = var.vpc_cidrs.uk
   project_name             = var.project_name
   environment              = var.environment
-  browser_tester_image_tag = var.browser_tester_image_tag
+  browser_tester_image_tag = local.browser_tester_image_tag
   results_bucket_arn       = aws_s3_bucket.results.arn
   tags                     = var.tags
 }
@@ -31,7 +31,7 @@ module "us" {
   vpc_cidr                 = var.vpc_cidrs.us
   project_name             = var.project_name
   environment              = var.environment
-  browser_tester_image_tag = var.browser_tester_image_tag
+  browser_tester_image_tag = local.browser_tester_image_tag
   results_bucket_arn       = aws_s3_bucket.results.arn
   tags                     = var.tags
 }
@@ -47,7 +47,7 @@ module "germany" {
   vpc_cidr                 = var.vpc_cidrs.germany
   project_name             = var.project_name
   environment              = var.environment
-  browser_tester_image_tag = var.browser_tester_image_tag
+  browser_tester_image_tag = local.browser_tester_image_tag
   results_bucket_arn       = aws_s3_bucket.results.arn
   tags                     = var.tags
 }
@@ -63,7 +63,7 @@ module "australia" {
   vpc_cidr                 = var.vpc_cidrs.australia
   project_name             = var.project_name
   environment              = var.environment
-  browser_tester_image_tag = var.browser_tester_image_tag
+  browser_tester_image_tag = local.browser_tester_image_tag
   results_bucket_arn       = aws_s3_bucket.results.arn
   tags                     = var.tags
 }
@@ -79,7 +79,7 @@ module "ireland" {
   vpc_cidr                 = var.vpc_cidrs.ireland
   project_name             = var.project_name
   environment              = var.environment
-  browser_tester_image_tag = var.browser_tester_image_tag
+  browser_tester_image_tag = local.browser_tester_image_tag
   results_bucket_arn       = aws_s3_bucket.results.arn
   tags                     = var.tags
 }
@@ -95,7 +95,7 @@ module "india" {
   vpc_cidr                 = var.vpc_cidrs.india
   project_name             = var.project_name
   environment              = var.environment
-  browser_tester_image_tag = var.browser_tester_image_tag
+  browser_tester_image_tag = local.browser_tester_image_tag
   results_bucket_arn       = aws_s3_bucket.results.arn
   tags                     = var.tags
 }
@@ -111,7 +111,7 @@ module "brazil" {
   vpc_cidr                 = var.vpc_cidrs.brazil
   project_name             = var.project_name
   environment              = var.environment
-  browser_tester_image_tag = var.browser_tester_image_tag
+  browser_tester_image_tag = local.browser_tester_image_tag
   results_bucket_arn       = aws_s3_bucket.results.arn
   tags                     = var.tags
 }
@@ -294,7 +294,7 @@ resource "aws_lambda_function" "backend" {
   function_name = "${var.project_name}-backend"
   role          = aws_iam_role.backend_lambda.arn
   package_type  = "Image"
-  image_uri     = "${aws_ecr_repository.backend.repository_url}:${var.backend_image_tag}"
+  image_uri     = "${aws_ecr_repository.backend.repository_url}:${local.backend_image_tag}"
   timeout       = 10
   memory_size   = 128
   architectures = ["arm64"]
@@ -352,7 +352,7 @@ resource "aws_lambda_function" "backend" {
       RATE_LIMIT_PER_IP    = var.rate_limit_per_ip
       RATE_LIMIT_PER_RANGE = var.rate_limit_per_range
       RATE_LIMIT_GLOBAL    = var.rate_limit_global
-      TURNSTILE_SECRET_KEY = var.turnstile_secret_key
+      TURNSTILE_SECRET_KEY = data.aws_ssm_parameter.turnstile_secret_key.value
     }
   }
 
