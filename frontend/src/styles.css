@@ -37,6 +37,12 @@
     outline: 2px solid #fe4e2b;
     outline-offset: 2px;
   }
+  /* A link to a part of the page moves focus there, for keyboard and screen
+     reader users. A whole section isn't a control, so it gets no ring. */
+  #root:focus-visible,
+  .guide section:focus-visible {
+    outline: none;
+  }
 }
 
 @layer components {
@@ -210,16 +216,26 @@
   .send-button {
     display: flex;
     flex-shrink: 0;
-    width: 40px;
+    min-width: 40px;
     height: 40px;
     align-items: center;
     justify-content: center;
+    gap: 6px;
+    font-size: 14px;
+    font-weight: 600;
+    white-space: nowrap;
     border-radius: 9999px;
     background: #d03011;
     color: #fff;
     transition:
       background-color 150ms,
       transform 150ms;
+  }
+  /* From a tablet up the button says what it does, beside the arrow */
+  @media (min-width: 640px) {
+    .send-button {
+      padding: 0 12px 0 16px;
+    }
   }
   .send-button:hover:not(:disabled) {
     background: #aa280e;
@@ -474,10 +490,12 @@
     width: 300px;
     margin: 0 auto;
   }
+  /* The same dotted map as the "How it works" picture */
   .picker-map .world-map-image {
-    opacity: 0.45;
+    background: url("./assets/world-dots.svg") center / 100% 100% no-repeat;
+    opacity: 1;
+    filter: none;
     mask-image: none;
-    border-radius: 6px;
   }
   .picker-map .map-dot {
     width: 7px;
@@ -592,6 +610,18 @@
   }
   .picker-backdrop {
     display: none;
+  }
+  /* The open list covers part of the page under it. The rest fades back, so
+     the ends of covered lines don't read as stray words beside the list. */
+  @media (min-width: 640px) {
+    main > section,
+    .guide {
+      transition: opacity 150ms;
+    }
+    main:has(.picker-trigger.is-open) > section,
+    body:has(.picker-trigger.is-open) .guide {
+      opacity: 0.25;
+    }
   }
   /* With little height, the list needs the map's space */
   @media (max-height: 720px) {
@@ -1054,14 +1084,16 @@
     margin-inline: auto;
     text-align: center;
   }
+  /* A short, small move: the words are readable almost as soon as they
+     scroll into view */
   .guide .reveal {
     transition:
-      opacity 500ms ease-out,
-      transform 500ms ease-out;
+      opacity 200ms ease-out,
+      transform 200ms ease-out;
   }
   .guide .reveal.is-waiting {
     opacity: 0;
-    transform: translateY(24px);
+    transform: translateY(10px);
   }
 
   .guide-intro {
@@ -2021,6 +2053,90 @@
     color: #475569;
     font-size: 14px;
     text-align: center;
+  }
+  /* The button in the corner that goes back to the top. Hidden until the
+     visitor has scrolled; the ring fills with how far down the page they are. */
+  .to-top {
+    position: fixed;
+    right: max(20px, env(safe-area-inset-right));
+    bottom: max(20px, env(safe-area-inset-bottom));
+    z-index: 15;
+    width: 48px;
+    height: 48px;
+    border-radius: 9999px;
+    background: rgb(255 255 255 / 0.92);
+    color: #aa280e;
+    box-shadow:
+      0 1px 2px rgb(15 23 42 / 0.08),
+      0 10px 28px rgb(142 33 11 / 0.2);
+    opacity: 0;
+    visibility: hidden;
+    transform: translateY(12px) scale(0.9);
+    transition:
+      opacity 250ms ease-out,
+      transform 250ms cubic-bezier(0.2, 0.8, 0.2, 1),
+      visibility 0s 250ms,
+      background-color 150ms,
+      color 150ms;
+  }
+  .to-top.is-shown {
+    opacity: 1;
+    visibility: visible;
+    transform: none;
+    transition-delay: 0s;
+  }
+  .to-top:hover {
+    background: #d03011;
+    color: #fff;
+    transform: translateY(-2px);
+  }
+  .to-top:active {
+    transform: scale(0.94);
+  }
+  .to-top svg {
+    display: block;
+    width: 100%;
+    height: 100%;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 2.5;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+  }
+  .to-top .to-top-track {
+    stroke: rgb(142 33 11 / 0.12);
+    stroke-width: 2;
+  }
+  .to-top .to-top-ring {
+    stroke: #fe4e2b;
+    stroke-width: 2;
+    stroke-dasharray: 1;
+    stroke-dashoffset: 1;
+    transform: rotate(-90deg);
+    transform-origin: center;
+  }
+  .to-top:hover .to-top-ring {
+    stroke: #fff;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .to-top {
+      transition: none;
+    }
+  }
+
+  .guide footer nav {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 4px 20px;
+    margin-bottom: 12px;
+    font-weight: 600;
+  }
+  .guide footer a {
+    color: #aa280e;
+  }
+  .guide footer a:hover {
+    text-decoration: underline;
   }
 }
 

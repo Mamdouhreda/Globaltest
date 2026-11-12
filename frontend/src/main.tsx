@@ -145,12 +145,62 @@ function example(
 // Real results from tests run on the given dates, shown until the visitor
 // runs a test of their own, in the order of EXAMPLE_COUNTRIES. MSN and Yahoo
 // change language and news by country and their pages scroll, so every
-// result has a scroll video; Facebook fits on one screen.
+// result has a scroll video; Facebook fits on one screen. MSN comes first
+// because its page is full from the top; Yahoo's opens on empty ad space.
 const EXAMPLES: Example[] = [
-  example('Yahoo', 'yahoo.com', '4 November 2026', [yahooUs, yahooBrazil, yahooGermany, yahooIndia], [1361, 4418, 2113, 2343], [yahooUsVideo, yahooBrazilVideo, yahooGermanyVideo, yahooIndiaVideo]),
-  example('Facebook', 'facebook.com', '4 November 2026', [facebookUs, facebookBrazil, facebookGermany, facebookIndia], [1364, 1687, 1035, 2730]),
   example('MSN', 'msn.com', '4 November 2026', [msnUs, msnBrazil, msnGermany, msnIndia], [6903, 1527, 1233, 1241], [msnUsVideo, msnBrazilVideo, msnGermanyVideo, msnIndiaVideo]),
+  example('Facebook', 'facebook.com', '4 November 2026', [facebookUs, facebookBrazil, facebookGermany, facebookIndia], [1364, 1687, 1035, 2730]),
+  example('Yahoo', 'yahoo.com', '4 November 2026', [yahooUs, yahooBrazil, yahooGermany, yahooIndia], [1361, 4418, 2113, 2343], [yahooUsVideo, yahooBrazilVideo, yahooGermanyVideo, yahooIndiaVideo]),
 ];
+
+// A copied test link carries the address and the countries, so opening it
+// fills in the same test, ready to run.
+function readLinkedTest(): { url: string; countries: string[] } {
+  const params = new URLSearchParams(window.location.search);
+  const countries = (params.get('countries') ?? '')
+    .split(',')
+    .filter((value) => COUNTRIES.some((region) => region.value === value && !region.soon));
+  return { url: params.get('url') ?? '', countries: countries.length > 0 ? countries : STARTING_COUNTRIES };
+}
+const LINKED_TEST = readLinkedTest();
+
+function testLink(url: string, countries: string[]): string {
+  const params = new URLSearchParams({ url, countries: countries.filter(Boolean).join(',') });
+  return `${window.location.origin}${window.location.pathname}?${params}`;
+}
+
+// The site's name without the rest of its address, for file names.
+function hostName(site: string): string {
+  try {
+    return new URL(/^https?:\/\//i.test(site) ? site : `https://${site}`).hostname;
+  } catch {
+    return 'screenshot';
+  }
+}
+
+// Saves a screenshot as a file. A result's screenshot is a link to another
+// server, which the browser only saves if it is fetched first; if that isn't
+// allowed, the image opens in a new tab to save from there.
+async function downloadScreenshot(shot: Shot, site: string) {
+  let href = shot.screenshot;
+  if (!href.startsWith('data:')) {
+    try {
+      const response = await fetch(href);
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}`);
+      }
+      href = URL.createObjectURL(await response.blob());
+      setTimeout(() => URL.revokeObjectURL(href), 10_000);
+    } catch {
+      window.open(shot.screenshot, '_blank', 'noopener');
+      return;
+    }
+  }
+  const link = document.createElement('a');
+  link.href = href;
+  link.download = `${hostName(site)}-${shot.region.value || 'local'}.png`;
+  link.click();
+}
 
 // The title in index.html, which a running test swaps for its progress.
 const PAGE_TITLE = document.title;
@@ -642,7 +692,7 @@ const TOUR_STEPS = [
   {
     target: 'start',
     title: 'Start the test',
-    text: 'Press the arrow or Enter. Each country gets a card below with its screenshot and load time, usually in under a minute.',
+    text: 'Press Test or Enter. Each country gets a card below with its screenshot and load time, usually in under a minute.',
   },
 ];
 
@@ -946,12 +996,12 @@ function PauseIcon() {
 }
 
 function App() {
-  const [url, setUrl] = useState('');
+  const [url, setUrl] = useState(LINKED_TEST.url);
   const [urlError, setUrlError] = useState('');
   const [checking, setChecking] = useState(false);
   const [checkError, setCheckError] = useState('');
   const checkAreaRef = useRef<HTMLDivElement>(null);
-  const [selected, setSelected] = useState<string[]>(STARTING_COUNTRIES);
+  const [selected, setSelected] = useState<string[]>(LINKED_TEST.countries);
   const [testedUrl, setTestedUrl] = useState('');
   // A scroll video adds time and cost, so tests take a screenshot only unless
   // the visitor asks for one.
@@ -960,7 +1010,8 @@ function App() {
   const [results, setResults] = useState<Record<string, RegionResult>>({});
   // The enlarged view holds every shot of the test, so it can flip between
   // countries in place.
-  const [zoomed, setZoomed] = useState<{ shots: Shot[]; index: number; showVideo: boolean } | null>(null);
+  const [zoomed, setZoomed] = useState<{ shots: Shot[]; index: number; showVideo: boolean; site: string } | null>(null);
+  const [copied, setCopied] = useState(false);
   const [exampleIndex, setExampleIndex] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
   const sendRef = useRef<HTMLButtonElement>(null);
@@ -1110,27 +1161,33 @@ function App() {
   }, [resultRegions.length, finished, loaded]);
 
   let fastest: { region: Region; ms: number } | undefined;
+  let slowest: { region: Region; ms: number } | undefined;
   for (const region of resultRegions) {
     const result = results[region.value];
-    if (result.state === 'ok' && result.responseTimeMs !== undefined && (!fastest || result.responseTimeMs < fastest.ms)) {
-      fastest = { region, ms: result.responseTimeMs };
+    if (result.state === 'ok' && result.responseTimeMs !== undefined) {
+      if (!fastest || result.responseTimeMs < fastest.ms) {
+        fastest = { region, ms: result.responseTimeMs };
+      }
+      if (!slowest || result.responseTimeMs > slowest.ms) {
+        slowest = { region, ms: result.responseTimeMs };
+      }
     }
   }
 
+  // Once every country has finished, the line says how the test went: how
+  // many countries the site loaded in, and the fastest and slowest of them.
+  const allFinished = resultRegions.length > 0 && finished === resultRegions.length;
   let summary = `${finished} of ${resultRegions.length} countries finished`;
-  if (finished === resultRegions.length) {
+  if (allFinished) {
     if (loaded === 0) {
       summary = "The site didn't load from any country";
-    } else if (fastest && loaded > 1) {
-      summary = `Fastest from ${fastest.region.label}: ${formatTime(fastest.ms)}`;
+    } else if (resultRegions.length === 1) {
+      summary = fastest ? `Loaded from ${fastest.region.label} in ${formatTime(fastest.ms)}` : 'Loaded';
     } else {
-      // A video can be missing even though one was asked for: recording is
-      // skipped if it fails, and the screenshot still comes back.
-      const hasVideo = resultRegions.some((region) => {
-        const result = results[region.value];
-        return result.state === 'ok' && result.video;
-      });
-      summary = hasVideo ? 'Select a result to watch its video' : 'Select a screenshot to enlarge it';
+      summary = `Loaded in ${loaded} of ${resultRegions.length} countries`;
+      if (fastest && slowest && fastest.region !== slowest.region) {
+        summary += ` · fastest ${fastest.region.label} ${formatTime(fastest.ms)} · slowest ${slowest.region.label} ${formatTime(slowest.ms)}`;
+      }
     }
   }
 
@@ -1142,9 +1199,27 @@ function App() {
     }
   }
 
-  function zoom(shots: Shot[], shot: Shot, showVideo: boolean) {
-    setZoomed({ shots, index: Math.max(0, shots.findIndex((item) => item.region.value === shot.region.value)), showVideo });
+  function zoom(shots: Shot[], shot: Shot, showVideo: boolean, site: string) {
+    setZoomed({ shots, index: Math.max(0, shots.findIndex((item) => item.region.value === shot.region.value)), showVideo, site });
   }
+
+  async function copyTestLink() {
+    try {
+      await navigator.clipboard.writeText(testLink(testedUrl, resultRegions.map((region) => region.value)));
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch (error) {
+      console.error(error);
+    }
+  }
+
+  const startLabel = isSubmitting
+    ? checking
+      ? 'Checking…'
+      : 'Testing…'
+    : selected.length === 0
+      ? 'Test'
+      : `Test ${selected.length} ${selected.length === 1 ? 'country' : 'countries'}`;
 
   const shown = EXAMPLES[exampleIndex];
 
@@ -1159,6 +1234,14 @@ function App() {
       <div className="relative mx-auto flex max-w-6xl items-center gap-2.5">
         <Logo flags={LOGO_REGIONS.flatMap((value) => REGIONS.filter((region) => region.value === value).map((region) => region.flag))} />
         <p className="text-lg font-bold tracking-tight text-[#3a1408]">GlobalTest</p>
+        <nav aria-label="On this page" className="ml-auto flex items-center gap-1 text-sm font-semibold">
+          <a href="#how-it-works" className="text-button rounded-full px-3 py-1.5">
+            How it works
+          </a>
+          <a href="#faq" className="text-button rounded-full px-3 py-1.5">
+            FAQ
+          </a>
+        </nav>
       </div>
 
       <div className="relative mx-auto mt-6 flex max-w-4xl flex-col items-center text-center sm:mt-8">
@@ -1221,15 +1304,11 @@ function App() {
                 data-tour="start"
                 type="submit"
                 disabled={isSubmitting}
-                aria-label={
-                  isSubmitting
-                    ? checking
-                      ? 'Checking…'
-                      : 'Testing…'
-                    : `Test ${selected.length} ${selected.length === 1 ? 'country' : 'countries'}`
-                }
+                aria-label={startLabel}
                 className="send-button"
               >
+                {/* Phones have room for the arrow only */}
+                <span className="hidden sm:inline">{startLabel}</span>
                 {isSubmitting ? <span className="spinner" aria-hidden /> : <ArrowUpIcon />}
               </button>
             </div>
@@ -1292,17 +1371,42 @@ function App() {
           {/* Each test waits for a browser to start, so it takes longer than the time it reports. */}
           <p className="-mt-2 mb-4 text-xs text-slate-600">
             Times are how long the page took to load in each country. The test takes longer because a browser has to
-            start there first.
+            start there first. Select a screenshot to enlarge it.
           </p>
+          {allFinished && (
+            <div className="mb-4 flex flex-wrap items-center gap-2">
+              <button
+                type="button"
+                onClick={() => startTest(testedUrl, resultRegions.map((region) => region.value), testedVideo)}
+                className="retry-button"
+              >
+                Run again
+              </button>
+              <button type="button" onClick={copyTestLink} className="retry-button">
+                {copied ? 'Link copied' : 'Copy test link'}
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setUrl('');
+                  setUrlError('');
+                  inputRef.current?.focus();
+                }}
+                className="retry-button"
+              >
+                Test another site
+              </button>
+            </div>
+          )}
           <div className="results-grid">
-            {resultRegions.map((region, index) => (
+            {resultRegions.map((region) => (
               <ResultCard
                 key={region.value}
                 region={region}
                 result={results[region.value]}
-                order={index}
+                site={testedUrl}
                 onRetry={() => retryRegion(region.value)}
-                onZoom={(shot, showVideo) => zoom(resultShots, shot, showVideo)}
+                onZoom={(shot, showVideo) => zoom(resultShots, shot, showVideo, testedUrl)}
               />
             ))}
           </div>
@@ -1351,7 +1455,7 @@ function App() {
               Run this test
             </button>
           </div>
-          <ExampleShowcase key={shown.url} example={shown} hold={zoomed !== null} onZoom={(shot, showVideo) => zoom(shown.shots, shot, showVideo)} />
+          <ExampleShowcase key={shown.url} example={shown} hold={zoomed !== null} onZoom={(shot, showVideo) => zoom(shown.shots, shot, showVideo, shown.url)} />
         </section>
       )}
 
@@ -1360,6 +1464,7 @@ function App() {
           shots={zoomed.shots}
           start={zoomed.index}
           startOnVideo={zoomed.showVideo}
+          site={zoomed.site}
           onClose={() => setZoomed(null)}
         />
       )}
@@ -1367,43 +1472,23 @@ function App() {
   );
 }
 
-// What a running card says while it waits, a line at a time, to keep the
-// wait light. A test reports nothing until it's done, so the lines follow the
-// meter's rough timeline: a browser starting, then the page being captured.
-const WAITING_LINES = {
-  starting: [
-    'Packing a browser for {city}…',
-    'Waking up a server in {city}…',
-    'Finding a free desk in {city}…',
-    'Booting Chrome in {city}…',
-  ],
-  capturing: [
-    'Opening your page in {city}…',
-    'Letting the page settle…',
-    'Framing the shot…',
-    'Saying cheese…',
-    'Timing the load…',
-  ],
-  slow: ['Taking the scenic route…', 'Still going. Some pages are slow from far away…'],
-};
-const WAITING_LINE_MS = 2800;
+// A test reports nothing until it's done, so a running card only says what
+// is known to be true: a browser is starting in the country, which is most of
+// the wait, and then the result is on its way.
+const STARTING_MS = 20_000;
+const SLOW_MS = 60_000;
 
-// order is the card's place among the results, so the cards start on
-// different lines and don't all say the same thing at once.
-function RunningMeter({ region, startedAt, order }: { region: Region; startedAt: number; order: number }) {
+function RunningMeter({ region, startedAt }: { region: Region; startedAt: number }) {
   const elapsed = useElapsed(startedAt);
   const percent = Math.round(estimateProgress(elapsed) * 100);
 
-  let lines = WAITING_LINES.starting;
-  if (elapsed > 60_000) {
-    lines = WAITING_LINES.slow;
-  } else if (elapsed > 10_000) {
-    lines = WAITING_LINES.capturing;
+  const where = region.value === '' ? 'on your computer' : `in ${region.city ?? region.label}`;
+  let line = `Starting a Chrome browser ${where}…`;
+  if (elapsed > SLOW_MS) {
+    line = 'Still going. Some pages are slow from far away…';
+  } else if (elapsed > STARTING_MS) {
+    line = `Waiting for the screenshot from ${region.city ?? region.label}…`;
   }
-  const line = lines[(Math.floor(elapsed / WAITING_LINE_MS) + order) % lines.length].replace(
-    '{city}',
-    region.city ?? region.label,
-  );
 
   return (
     <div className="flex size-full flex-col items-center justify-center gap-2.5 px-4 py-3 text-center">
@@ -1448,13 +1533,14 @@ function Sparkle({ className }: { className: string }) {
 function ResultCard({
   region,
   result,
-  order,
+  site,
   onRetry,
   onZoom,
 }: {
   region: Region;
   result: RegionResult;
-  order: number;
+  // The address tested, for the name of a saved screenshot.
+  site: string;
   onRetry: () => void;
   onZoom: (shot: Shot, showVideo: boolean) => void;
 }) {
@@ -1471,6 +1557,17 @@ function ResultCard({
         <h3 className="min-w-0 flex-1 basis-20 truncate text-sm font-semibold text-slate-900">{region.label}</h3>
         {video && screenshot && <ViewToggle showVideo={showVideo} onChange={setShowVideo} label={region.label} />}
         {result.state === 'running' && <span className="status bg-amber-100 text-amber-900">Running</span>}
+        {screenshot && (
+          <button
+            type="button"
+            onClick={() => downloadScreenshot({ region, screenshot, responseTimeMs, video }, site)}
+            aria-label={`Download screenshot from ${region.label}`}
+            title="Download screenshot"
+            className="icon-button"
+          >
+            <DownloadIcon />
+          </button>
+        )}
         {result.state === 'ok' && (
           <span className="status bg-emerald-100 text-emerald-900">
             {result.responseTimeMs !== undefined ? formatTime(result.responseTimeMs) : 'Loaded'}
@@ -1479,7 +1576,7 @@ function ResultCard({
         {result.state === 'error' && <span className="status bg-rose-100 text-rose-900">Failed</span>}
       </header>
       <div className="result-body bg-white/50">
-        {result.state === 'running' && <RunningMeter region={region} startedAt={result.startedAt} order={order} />}
+        {result.state === 'running' && <RunningMeter region={region} startedAt={result.startedAt} />}
         {result.state === 'ok' &&
           (screenshot ? (
             <button
@@ -1577,6 +1674,14 @@ function ImageIcon() {
   );
 }
 
+function DownloadIcon() {
+  return (
+    <svg viewBox="0 0 16 16" className="size-4" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+      <path d="M8 2.5v7.5M4.8 7 8 10.2 11.2 7M3 13h10" />
+    </svg>
+  );
+}
+
 function ChevronIcon({ flip }: { flip?: boolean }) {
   return (
     <svg viewBox="0 0 16 16" className={`size-4 ${flip ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
@@ -1592,11 +1697,13 @@ function ScreenshotDialog({
   shots,
   start,
   startOnVideo,
+  site,
   onClose,
 }: {
   shots: Shot[];
   start: number;
   startOnVideo: boolean;
+  site: string;
   onClose: () => void;
 }) {
   const [index, setIndex] = useState(start);
@@ -1659,6 +1766,9 @@ function ScreenshotDialog({
               </button>
             </div>
           )}
+          <button type="button" onClick={() => downloadScreenshot(shots[index], site)} className="retry-button">
+            Download
+          </button>
           <button type="button" onClick={() => dialogRef.current?.close()} className="retry-button">
             Close
           </button>
