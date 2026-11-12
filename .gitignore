@@ -14,3 +14,6 @@ terraform/*.tfstate.*
 terraform/*.tfvars
 !terraform/terraform.tfvars.example
 terraform/.terraform.lock.hcl
+
+# Local Claude notes, not shared
+CLAUDE.md
